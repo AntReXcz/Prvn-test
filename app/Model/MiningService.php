@@ -35,6 +35,16 @@ class MiningService
             throw new RuntimeException('Node not found');
         }
 
+        $now = new DateTimeImmutable();
+        $state = $this->dataStore->getNodeState($zoneId, $nodeId, $now);
+        if ($state['state'] === 'reserved' && $state['reserved_until'] instanceof DateTimeImmutable && $state['reserved_until'] > $now) {
+            throw new RuntimeException('Node is currently reserved');
+        }
+        if ($state['state'] === 'depleted' && $state['respawn_at'] instanceof DateTimeImmutable && $state['respawn_at'] > $now) {
+            $seconds = $state['respawn_at']->getTimestamp() - $now->getTimestamp();
+            throw new RuntimeException('Node is depleted, respawns in ' . $seconds . ' seconds');
+        }
+
         $tool = $this->dataStore->getItem($toolId);
         if (!$tool || $tool['type'] !== 'tool') {
             throw new RuntimeException('Invalid tool');
@@ -49,8 +59,11 @@ class MiningService
         $baseDuration = $node['cooldown_ms'];
         $adjustedDuration = (int)($baseDuration * $speedMultiplier / $toolSpeed);
 
-        $now = new DateTimeImmutable();
         $finishAt = $now->add(new DateInterval('PT' . max(1, (int)ceil($adjustedDuration / 1000)) . 'S'));
+
+        if (!$this->dataStore->reserveNode($zoneId, $nodeId, $finishAt)) {
+            throw new RuntimeException('Node could not be reserved');
+        }
 
         $taskId = $this->dataStore->createTask([
             'type' => 'mining',
@@ -60,6 +73,8 @@ class MiningService
             'tool_id' => $toolId,
             'material_id' => $node['material_id'],
             'qty' => $node['qty'],
+            'cooldown_ms' => $node['cooldown_ms'],
+            'respawn_ms' => $node['respawn_ms'] ?? $node['cooldown_ms'],
             'started_at' => $now,
             'finish_at' => $finishAt,
             'completed' => false,
@@ -93,6 +108,10 @@ class MiningService
         $task['completed'] = true;
         $this->dataStore->updateTask($taskId, $task);
 
+        $respawnMs = $task['respawn_ms'] ?? $task['cooldown_ms'] ?? 3000;
+        $respawnAt = $now->add(new DateInterval('PT' . max(1, (int)ceil($respawnMs / 1000)) . 'S'));
+        $this->dataStore->markNodeDepleted($task['zone_id'], $task['node_id'], $respawnAt);
+
         $rewardXp = 25 * $task['qty'];
         $this->addXp($task['user_id'], 1, $rewardXp); // Mining profession id 1
 
@@ -102,6 +121,7 @@ class MiningService
                 ['material_id' => $task['material_id'], 'qty' => $task['qty']],
             ],
             'xp_gained' => $rewardXp,
+            'respawn_at' => $respawnAt->format(DateTimeImmutable::ATOM),
         ];
     }
 

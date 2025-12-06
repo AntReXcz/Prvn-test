@@ -14,6 +14,11 @@ $presenter = new ApiPresenter(new DataStore());
 $startResponse = json_decode($presenter->handle(['action' => 'startMining', 'userId' => 1, 'zoneId' => 1, 'nodeId' => 101, 'toolId' => 1000]), true);
 $taskId = $startResponse['task_id'];
 
+$zoneStatus = json_decode($presenter->handle(['action' => 'zoneStatus', 'zoneId' => 1]), true);
+if (($zoneStatus['nodes'][0]['state'] ?? '') !== 'reserved') {
+    throw new RuntimeException('Zone status should reflect reservation');
+}
+
 $reflection = new ReflectionClass($presenter);
 $storeProp = $reflection->getProperty('dataStore');
 $storeProp->setAccessible(true);

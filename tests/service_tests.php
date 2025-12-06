@@ -24,6 +24,14 @@ $start = $mining->startMining(1, 1, 101, 1000);
 assertTrue(isset($start['task_id']), 'Task id returned for mining');
 
 $taskId = $start['task_id'];
+
+try {
+    $mining->startMining(1, 1, 101, 1000);
+    assertTrue(false, 'Reservation should block concurrent mining');
+} catch (RuntimeException $e) {
+    assertTrue(str_contains($e->getMessage(), 'reserved'), 'Node is reserved');
+}
+
 // fast-forward by marking finish time in the past for tests
 $task = (new ReflectionProperty($store, 'tasks'));
 $task->setAccessible(true);
@@ -33,6 +41,22 @@ $task->setValue($store, $tasks);
 
 $result = $mining->finishMining($taskId);
 assertTrue($result['status'] === 'completed', 'Mining completion');
+
+try {
+    $mining->startMining(1, 1, 101, 1000);
+    assertTrue(false, 'Depleted node should block until respawn');
+} catch (RuntimeException $e) {
+    assertTrue(str_contains($e->getMessage(), 'depleted'), 'Node depleted response');
+}
+
+$nodeStates = new ReflectionProperty($store, 'nodeStates');
+$nodeStates->setAccessible(true);
+$states = $nodeStates->getValue($store);
+$states[1][101]['respawn_at'] = (new DateTimeImmutable())->sub(new DateInterval('PT1S'));
+$nodeStates->setValue($store, $states);
+
+$startAfterRespawn = $mining->startMining(1, 1, 101, 1000);
+assertTrue(isset($startAfterRespawn['task_id']), 'Node available after respawn');
 
 $craft = $crafting->craft(1, 1);
 assertTrue(isset($craft['task_id']), 'Crafting task created');

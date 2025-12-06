@@ -17,6 +17,7 @@ class DataStore
     private array $inventories = [];
     private array $tasks = [];
     private array $users = [];
+    private array $nodeStates = [];
 
     public function __construct()
     {
@@ -51,8 +52,8 @@ class DataStore
 
         $this->zones = [
             1 => ['id' => 1, 'name' => 'Copper Hills', 'biome' => 'mountain', 'spawn_table' => [
-                ['node_id' => 101, 'material_id' => 1, 'qty' => 3, 'cooldown_ms' => 3000],
-                ['node_id' => 102, 'material_id' => 2, 'qty' => 2, 'cooldown_ms' => 5000],
+                ['node_id' => 101, 'material_id' => 1, 'qty' => 3, 'cooldown_ms' => 3000, 'respawn_ms' => 4000],
+                ['node_id' => 102, 'material_id' => 2, 'qty' => 2, 'cooldown_ms' => 5000, 'respawn_ms' => 6000],
             ]],
         ];
 
@@ -141,6 +142,84 @@ class DataStore
         return $this->inventories[$userId][$materialId] ?? 0;
     }
 
+    public function getNodeState(int $zoneId, int $nodeId, ?\DateTimeImmutable $now = null): array
+    {
+        $now ??= new \DateTimeImmutable();
+        $this->refreshNodeState($zoneId, $nodeId, $now);
+
+        if (!isset($this->nodeStates[$zoneId][$nodeId])) {
+            $this->nodeStates[$zoneId][$nodeId] = [
+                'state' => 'available',
+                'reserved_until' => null,
+                'respawn_at' => null,
+            ];
+        }
+
+        return $this->nodeStates[$zoneId][$nodeId];
+    }
+
+    public function reserveNode(int $zoneId, int $nodeId, \DateTimeImmutable $until): bool
+    {
+        $this->refreshNodeState($zoneId, $nodeId, new \DateTimeImmutable());
+        $state = $this->nodeStates[$zoneId][$nodeId] ?? ['state' => 'available'];
+
+        if ($state['state'] !== 'available') {
+            return false;
+        }
+
+        $this->nodeStates[$zoneId][$nodeId] = [
+            'state' => 'reserved',
+            'reserved_until' => $until,
+            'respawn_at' => null,
+        ];
+
+        return true;
+    }
+
+    public function markNodeDepleted(int $zoneId, int $nodeId, \DateTimeImmutable $respawnAt): void
+    {
+        $this->nodeStates[$zoneId][$nodeId] = [
+            'state' => 'depleted',
+            'reserved_until' => null,
+            'respawn_at' => $respawnAt,
+        ];
+    }
+
+    public function releaseNode(int $zoneId, int $nodeId): void
+    {
+        $this->nodeStates[$zoneId][$nodeId] = [
+            'state' => 'available',
+            'reserved_until' => null,
+            'respawn_at' => null,
+        ];
+    }
+
+    public function getZoneNodesWithState(int $zoneId): array
+    {
+        $zone = $this->getZone($zoneId);
+        if (!$zone) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($zone['spawn_table'] as $entry) {
+            $state = $this->getNodeState($zoneId, $entry['node_id']);
+
+            $result[] = [
+                'node_id' => $entry['node_id'],
+                'material_id' => $entry['material_id'],
+                'qty' => $entry['qty'],
+                'cooldown_ms' => $entry['cooldown_ms'],
+                'respawn_ms' => $entry['respawn_ms'] ?? $entry['cooldown_ms'],
+                'state' => $state['state'],
+                'reserved_until' => $this->formatDate($state['reserved_until']),
+                'respawn_at' => $this->formatDate($state['respawn_at']),
+            ];
+        }
+
+        return $result;
+    }
+
     public function addInventoryQty(int $userId, int $materialId, int $qty): void
     {
         $current = $this->inventories[$userId][$materialId] ?? 0;
@@ -178,5 +257,28 @@ class DataStore
     public function getTasks(): array
     {
         return $this->tasks;
+    }
+
+    private function refreshNodeState(int $zoneId, int $nodeId, \DateTimeImmutable $now): void
+    {
+        if (!isset($this->nodeStates[$zoneId][$nodeId])) {
+            return;
+        }
+
+        $state = $this->nodeStates[$zoneId][$nodeId];
+
+        if ($state['state'] === 'reserved' && $state['reserved_until'] instanceof \DateTimeImmutable && $state['reserved_until'] <= $now) {
+            $this->releaseNode($zoneId, $nodeId);
+            return;
+        }
+
+        if ($state['state'] === 'depleted' && $state['respawn_at'] instanceof \DateTimeImmutable && $state['respawn_at'] <= $now) {
+            $this->releaseNode($zoneId, $nodeId);
+        }
+    }
+
+    private function formatDate(?\DateTimeImmutable $date): ?string
+    {
+        return $date?->format(\DateTimeImmutable::ATOM);
     }
 }

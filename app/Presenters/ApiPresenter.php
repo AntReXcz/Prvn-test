@@ -27,6 +27,7 @@ class ApiPresenter
                 'finishMining' => $this->json($this->miningService->finishMining((int)$request['taskId'])),
                 'craft' => $this->json($this->craftingService->craft((int)$request['userId'], (int)$request['recipeId'])),
                 'finishCraft' => $this->json($this->craftingService->finishCrafting((int)$request['taskId'])),
+                'zoneStatus' => $this->json(['nodes' => $this->dataStore->getZoneNodesWithState((int)$request['zoneId'])]),
                 'status' => $this->json(['tasks' => $this->dataStore->getTasks(), 'inventory' => $this->getInventory((int)$request['userId'])]),
                 default => $this->json(['error' => 'Unknown action'], 400),
             };
