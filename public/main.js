@@ -115,12 +115,15 @@ async function loadZone() {
     const data = await callApi({ action: 'zoneStatus', zoneId: currentZoneId });
     nodes = data.nodes || [];
     renderNodes();
+    const zoneMeta = zones.find((z) => z.id === currentZoneId);
+    const zoneName = zoneMeta ? zoneMeta.name : 'Mapa';
+    setStatus(`${zoneName} načtena.`);
   } catch (err) {
     setStatus(err.message);
   }
 }
 
-function handleZoneChange(event) {
+async function handleZoneChange(event) {
   const nextZoneId = Number(event.target.value);
   if (Number.isNaN(nextZoneId) || nextZoneId === currentZoneId) {
     return;
@@ -131,7 +134,7 @@ function handleZoneChange(event) {
   nodes = [];
   renderNodes();
   currentZoneId = nextZoneId;
-  loadZone();
+  await loadZone();
 }
 
 function renderNodes() {
