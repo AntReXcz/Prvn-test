@@ -97,6 +97,34 @@ body {
   padding: 12px;
 }
 
+.resources {
+  background: #1e293b;
+  border: 2px solid #334155;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.resources h2 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+}
+
+.resource-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.resource-row {
+  display: flex;
+  justify-content: space-between;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
 .tool-header {
   display: flex;
   justify-content: space-between;

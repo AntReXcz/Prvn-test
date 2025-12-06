@@ -7,6 +7,7 @@ const minimap = document.getElementById('minimap');
 const bar = document.getElementById('progress-bar');
 const label = document.getElementById('progress-label');
 const inventoryEl = document.getElementById('inventory');
+const totalsEl = document.getElementById('resource-totals');
 const requirementsEl = document.getElementById('requirements');
 const dropTarget = document.getElementById('drop-target');
 const craftBtn = document.getElementById('craft-btn');
@@ -46,12 +47,17 @@ function renderNodes() {
     if (node.state !== 'available') {
       el.classList.add('disabled');
     }
-    el.addEventListener('click', () => startMining(node));
+    el.addEventListener('mouseenter', () => startMining(node));
     minimap.appendChild(el);
   });
 }
 
 async function startMining(node) {
+  if (currentTask) {
+    setStatus('Already working on a task.');
+    return;
+  }
+
   if (node.state !== 'available') {
     setStatus('Node is not available yet.');
     return;
@@ -85,6 +91,8 @@ async function finishMining(taskId) {
     await Promise.all([refreshInventory(), loadZone()]);
   } catch (err) {
     setStatus(err.message);
+  } finally {
+    currentTask = null;
   }
 }
 
@@ -123,6 +131,25 @@ function renderInventory(slots) {
     item.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', slot.material_id));
     inventoryEl.appendChild(item);
   });
+  renderTotals(slots);
+}
+
+function renderTotals(slots) {
+  totalsEl.innerHTML = '';
+  if (!slots.length) {
+    totalsEl.textContent = 'Zatím nic netěžíte';
+    return;
+  }
+
+  slots
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    .forEach((slot) => {
+      const row = document.createElement('div');
+      row.className = 'resource-row';
+      const label = slot.name ? slot.name : `Material ${slot.material_id}`;
+      row.innerHTML = `<span>${label}</span><strong>${slot.qty}</strong>`;
+      totalsEl.appendChild(row);
+    });
 }
 
 function renderRequirements() {
@@ -185,6 +212,8 @@ async function finishCraft(taskId) {
     await refreshInventory();
   } catch (err) {
     setStatus(err.message);
+  } finally {
+    currentTask = null;
   }
 }
 
