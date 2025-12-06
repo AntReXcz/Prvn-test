@@ -11,6 +11,11 @@ use App\Model\DataStore;
 
 $presenter = new ApiPresenter(new DataStore());
 
+$zones = json_decode($presenter->handle(['action' => 'listZones']), true);
+if (count($zones['zones'] ?? []) < 3) {
+    throw new RuntimeException('Expected multiple zones to be returned');
+}
+
 $startResponse = json_decode($presenter->handle(['action' => 'startMining', 'userId' => 1, 'zoneId' => 1, 'nodeId' => 101, 'toolId' => 1000]), true);
 $taskId = $startResponse['task_id'];
 

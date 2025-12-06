@@ -31,6 +31,8 @@ class DataStore
             1 => ['id' => 1, 'name' => 'Copper Ore', 'group' => 'ore', 'tier' => 1],
             2 => ['id' => 2, 'name' => 'Tin Ore', 'group' => 'ore', 'tier' => 1],
             3 => ['id' => 3, 'name' => 'Bronze Bar', 'group' => 'bar', 'tier' => 2],
+            4 => ['id' => 4, 'name' => 'Lumber', 'group' => 'wood', 'tier' => 1],
+            5 => ['id' => 5, 'name' => 'Wheat', 'group' => 'crop', 'tier' => 1],
         ];
 
         $this->items = [
@@ -60,6 +62,24 @@ class DataStore
                 ['node_id' => 104, 'material_id' => 2, 'qty' => 3, 'cooldown_ms' => 4200, 'respawn_ms' => 5200, 'x' => 340, 'y' => 170],
                 ['node_id' => 105, 'material_id' => 1, 'qty' => 4, 'cooldown_ms' => 3100, 'respawn_ms' => 4100, 'x' => 120, 'y' => 230],
                 ['node_id' => 106, 'material_id' => 2, 'qty' => 1, 'cooldown_ms' => 2800, 'respawn_ms' => 3800, 'x' => 410, 'y' => 90],
+            ]],
+            2 => ['id' => 2, 'name' => 'Whispering Forest', 'biome' => 'forest', 'spawn_table' => [
+                ['node_id' => 201, 'material_id' => 4, 'qty' => 2, 'cooldown_ms' => 2500, 'respawn_ms' => 3000, 'x' => 60, 'y' => 60],
+                ['node_id' => 202, 'material_id' => 4, 'qty' => 3, 'cooldown_ms' => 2800, 'respawn_ms' => 3200, 'x' => 160, 'y' => 110],
+                ['node_id' => 203, 'material_id' => 4, 'qty' => 2, 'cooldown_ms' => 2600, 'respawn_ms' => 3100, 'x' => 240, 'y' => 180],
+                ['node_id' => 204, 'material_id' => 4, 'qty' => 4, 'cooldown_ms' => 3000, 'respawn_ms' => 3400, 'x' => 330, 'y' => 80],
+                ['node_id' => 205, 'material_id' => 4, 'qty' => 2, 'cooldown_ms' => 2400, 'respawn_ms' => 2800, 'x' => 430, 'y' => 150],
+                ['node_id' => 206, 'material_id' => 4, 'qty' => 3, 'cooldown_ms' => 2700, 'respawn_ms' => 3200, 'x' => 120, 'y' => 220],
+                ['node_id' => 207, 'material_id' => 4, 'qty' => 2, 'cooldown_ms' => 2550, 'respawn_ms' => 3050, 'x' => 280, 'y' => 40],
+            ]],
+            3 => ['id' => 3, 'name' => 'Greenfield Farm', 'biome' => 'farmland', 'spawn_table' => [
+                ['node_id' => 301, 'material_id' => 5, 'qty' => 3, 'cooldown_ms' => 2200, 'respawn_ms' => 2600, 'x' => 70, 'y' => 90],
+                ['node_id' => 302, 'material_id' => 5, 'qty' => 2, 'cooldown_ms' => 2100, 'respawn_ms' => 2400, 'x' => 150, 'y' => 170],
+                ['node_id' => 303, 'material_id' => 5, 'qty' => 4, 'cooldown_ms' => 2300, 'respawn_ms' => 2700, 'x' => 240, 'y' => 60],
+                ['node_id' => 304, 'material_id' => 5, 'qty' => 2, 'cooldown_ms' => 2000, 'respawn_ms' => 2300, 'x' => 330, 'y' => 130],
+                ['node_id' => 305, 'material_id' => 5, 'qty' => 3, 'cooldown_ms' => 2400, 'respawn_ms' => 2800, 'x' => 420, 'y' => 200],
+                ['node_id' => 306, 'material_id' => 5, 'qty' => 2, 'cooldown_ms' => 1900, 'respawn_ms' => 2200, 'x' => 110, 'y' => 230],
+                ['node_id' => 307, 'material_id' => 5, 'qty' => 3, 'cooldown_ms' => 2500, 'respawn_ms' => 2900, 'x' => 260, 'y' => 210],
             ]],
         ];
 
@@ -137,6 +157,11 @@ class DataStore
     public function getZone(int $id): ?array
     {
         return $this->zones[$id] ?? null;
+    }
+
+    public function getZones(): array
+    {
+        return array_values($this->zones);
     }
 
     public function damageTool(int $userId, int $toolId, int $amount): bool

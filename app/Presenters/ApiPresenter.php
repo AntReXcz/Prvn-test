@@ -30,6 +30,7 @@ class ApiPresenter
                 'craft' => $this->json($this->craftingService->craft((int)$request['userId'], (int)$request['recipeId'])),
                 'finishCraft' => $this->json($this->craftingService->finishCrafting((int)$request['taskId'])),
                 'zoneStatus' => $this->json(['nodes' => $this->dataStore->getZoneNodesWithState((int)$request['zoneId'])]),
+                'listZones' => $this->json(['zones' => $this->dataStore->getZones()]),
                 'status' => $this->json([
                     'tasks' => $this->dataStore->getTasks(),
                     'inventory' => $this->getInventory((int)$request['userId']),

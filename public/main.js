@@ -1,12 +1,12 @@
 const API_BASE = 'api.php';
 const USER_ID = 1;
-const ZONE_ID = 1;
 const TOOL_ID = 1000;
 const MINING_RADIUS = 70;
 const MAX_SIMULTANEOUS_NODES = 10;
 const NODE_SIZE = 18;
 
 const minimap = document.getElementById('minimap');
+const zoneSelect = document.getElementById('zone-select');
 const bar = document.getElementById('progress-bar');
 const label = document.getElementById('progress-label');
 const inventoryEl = document.getElementById('inventory');
@@ -18,6 +18,7 @@ const toolStatus = document.getElementById('tool-status');
 const repairBtn = document.getElementById('repair-btn');
 
 let nodes = [];
+let zones = [];
 let nodeElements = new Map();
 let consumed = {};
 let progressRaf = null;
@@ -26,6 +27,7 @@ let activeTasks = new Map();
 let pendingStarts = new Set();
 let aoeIndicator = null;
 let craftTaskId = null;
+let currentZoneId = null;
 
 init();
 
@@ -33,9 +35,10 @@ async function init() {
   setupAoeIndicator();
   minimap.addEventListener('mousemove', handleMinimapMove);
   minimap.addEventListener('mouseleave', handleMinimapLeave);
+  zoneSelect.addEventListener('change', handleZoneChange);
 
-  setStatus('Loading zone...');
-  await Promise.all([loadZone(), refreshInventory()]);
+  setStatus('Načítám mapy...');
+  await Promise.all([loadZones(), refreshInventory()]);
   setStatus('Idle');
 }
 
@@ -50,14 +53,58 @@ function setupAoeIndicator() {
   }
 }
 
-async function loadZone() {
+async function loadZones() {
   try {
-    const data = await callApi({ action: 'zoneStatus', zoneId: ZONE_ID });
+    const data = await callApi({ action: 'listZones' });
+    zones = data.zones || [];
+    zoneSelect.innerHTML = '';
+    zones.forEach((zone) => {
+      const opt = document.createElement('option');
+      opt.value = zone.id;
+      opt.textContent = `${zone.name} (${zone.biome})`;
+      zoneSelect.appendChild(opt);
+    });
+
+    const firstZone = zones[0];
+    if (currentZoneId === null || !zones.some((z) => z.id === currentZoneId)) {
+      currentZoneId = firstZone ? firstZone.id : null;
+    }
+
+    if (currentZoneId !== null) {
+      zoneSelect.value = currentZoneId;
+      await loadZone();
+    }
+  } catch (err) {
+    setStatus(err.message);
+  }
+}
+
+async function loadZone() {
+  if (currentZoneId === null) {
+    return;
+  }
+  setStatus('Načítám mapu...');
+  try {
+    const data = await callApi({ action: 'zoneStatus', zoneId: currentZoneId });
     nodes = data.nodes || [];
     renderNodes();
   } catch (err) {
     setStatus(err.message);
   }
+}
+
+function handleZoneChange(event) {
+  const nextZoneId = Number(event.target.value);
+  if (Number.isNaN(nextZoneId) || nextZoneId === currentZoneId) {
+    return;
+  }
+
+  cancelAllActiveTasks('Přesun na jinou mapu.');
+  resetProgress();
+  nodes = [];
+  renderNodes();
+  currentZoneId = nextZoneId;
+  loadZone();
 }
 
 function renderNodes() {
@@ -150,7 +197,7 @@ async function startAreaMining(node) {
     const data = await callApi({
       action: 'startMining',
       userId: USER_ID,
-      zoneId: ZONE_ID,
+      zoneId: currentZoneId,
       nodeId: node.node_id,
       toolId: TOOL_ID,
     });

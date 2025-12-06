@@ -13,6 +13,9 @@ $store = new DataStore();
 $mining = new MiningService($store);
 $crafting = new CraftingService($store);
 
+$zones = $store->getZones();
+assertTrue(count($zones) >= 3, 'Multiple zones are seeded');
+
 function assertTrue(bool $expr, string $message)
 {
     if (!$expr) {
