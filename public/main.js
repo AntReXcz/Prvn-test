@@ -2,7 +2,7 @@ const API_BASE = 'api.php';
 const USER_ID = 1;
 const ZONE_ID = 1;
 const TOOL_ID = 1000;
-const MINING_RADIUS = 60;
+const MINING_RADIUS = 70;
 const MAX_SIMULTANEOUS_NODES = 10;
 const NODE_SIZE = 18;
 
@@ -66,7 +66,10 @@ function renderNodes() {
 
   nodes.forEach((node) => {
     const el = document.createElement('div');
-    el.className = `node state-${node.state}`;
+    const materialSlug = (node.material_name || `${node.material_id}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-');
+    el.className = `node state-${node.state} material-${materialSlug}`;
     el.style.left = `${node.x}px`;
     el.style.top = `${node.y}px`;
     el.title = `${node.material_name} (${node.state})`;
