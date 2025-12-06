@@ -3,7 +3,7 @@
 error_reporting(E_ALL);
 
 set_error_handler(function ($severity, $message, $file, $line) {
-    throw new ErrorException($message, 0, $severity, $file, $line);
+    throw new \ErrorException($message, 0, $severity, $file, $line);
 });
 
 set_exception_handler(function ($exception) {
@@ -22,7 +22,6 @@ require_once __DIR__ . '/../app/Presenters/ApiPresenter.php';
 
 use App\Model\DataStore;
 use App\Presenters\ApiPresenter;
-use ErrorException;
 
 $dataStore = $_SESSION['datastore'] ?? new DataStore();
 
