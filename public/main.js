@@ -161,6 +161,7 @@ async function startAreaMining(node) {
     const taskInfo = {
       taskId: data.task_id,
       nodeId: node.node_id,
+      materialName: node.material_name || 'uzel',
       startedAt,
       etaMs: data.eta_ms,
       timer: null,
@@ -252,13 +253,28 @@ function updateProgressLoop() {
     }
 
     const now = Date.now();
-    const starts = Array.from(activeTasks.values()).map((t) => t.startedAt);
-    const ends = Array.from(activeTasks.values()).map((t) => t.startedAt + t.etaMs);
-    const areaStart = Math.min(...starts);
-    const areaEnd = Math.max(...ends);
-    const pct = Math.min(1, (now - areaStart) / (areaEnd - areaStart));
+    const tasks = Array.from(activeTasks.values());
+    let next = null;
+    tasks.forEach((t) => {
+      const end = t.startedAt + t.etaMs;
+      if (!next || end < next.endTime) {
+        next = { task: t, endTime: end };
+      }
+    });
+
+    if (!next) {
+      resetProgress();
+      setStatus('Idle');
+      progressRaf = null;
+      return;
+    }
+
+    const duration = Math.max(1, next.task.etaMs);
+    const elapsed = Math.max(0, now - next.task.startedAt);
+    const pct = Math.min(1, elapsed / duration);
+
     bar.style.width = `${pct * 100}%`;
-    setStatus(`Těžím ${activeTasks.size} uzlů (${(pct * 100).toFixed(0)}%)`);
+    setStatus(`Těžím ${activeTasks.size} uzlů – ${next.task.materialName} ${(pct * 100).toFixed(0)}%`);
     progressRaf = requestAnimationFrame(tick);
   };
 
