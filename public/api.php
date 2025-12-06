@@ -23,7 +23,10 @@ session_start();
 use App\Model\DataStore;
 use App\Presenters\ApiPresenter;
 
-$dataStore = $_SESSION['datastore'] ?? new DataStore();
+$dataStore = $_SESSION['datastore'] ?? null;
+if (!$dataStore instanceof DataStore || !method_exists($dataStore, 'getVersion') || $dataStore->getVersion() !== DataStore::DATA_VERSION) {
+    $dataStore = new DataStore();
+}
 
 $presenter = new ApiPresenter($dataStore);
 header('Content-Type: application/json');

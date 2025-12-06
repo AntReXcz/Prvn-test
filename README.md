@@ -11,6 +11,8 @@ php -S 0.0.0.0:8000 -t public
 
 3. Otevřete prohlížeč na `http://localhost:8000/`. Frontend volá API přes `public/api.php`, které instancuje in-memory datastore se seedovanými daty a ihned je připravené k použití. V rozbalovacím seznamu můžete přepínat mezi hornickou mapou Copper Hills, dřevorubeckým lesem Whispering Forest a farmářskou oblastí Greenfield Farm.
 
+Pokud jste spouštěli demo s dřívější verzí kódu a nevidíte nově přidané mapy nebo materiály, stačí obnovit stránku – datastore se díky verzování automaticky znovu seeduje a doplní nové oblasti a suroviny.
+
 ## Spuštění na XAMPP/Apache
 
 1. Zkopírujte repozitář do `htdocs` (např. `htdocs/Prvn-test`).

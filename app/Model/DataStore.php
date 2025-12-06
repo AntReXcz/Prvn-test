@@ -7,6 +7,8 @@ namespace App\Model;
  */
 class DataStore
 {
+    public const DATA_VERSION = '2024-10-zones-v2';
+
     private array $materials = [];
     private array $recipes = [];
     private array $recipeInputs = [];
@@ -19,6 +21,7 @@ class DataStore
     private array $users = [];
     private array $nodeStates = [];
     private array $toolDurability = [];
+    private string $version = self::DATA_VERSION;
 
     public function __construct()
     {
@@ -122,6 +125,11 @@ class DataStore
                 1000 => $this->items[1000]['durability'],
             ],
         ];
+    }
+
+    public function getVersion(): string
+    {
+        return $this->version ?? self::DATA_VERSION;
     }
 
     public function getMaterial(int $id): ?array

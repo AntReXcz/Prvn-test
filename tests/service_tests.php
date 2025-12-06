@@ -13,6 +13,9 @@ $store = new DataStore();
 $mining = new MiningService($store);
 $crafting = new CraftingService($store);
 
+$version = $store->getVersion();
+assertTrue($version === DataStore::DATA_VERSION, 'Datastore exposes current version');
+
 $zones = $store->getZones();
 assertTrue(count($zones) >= 3, 'Multiple zones are seeded');
 
