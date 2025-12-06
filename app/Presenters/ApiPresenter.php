@@ -81,14 +81,3 @@ class ApiPresenter
         return $tools;
     }
 }
-
-if (php_sapi_name() !== 'cli') {
-    require_once __DIR__ . '/../Model/DataStore.php';
-    require_once __DIR__ . '/../Model/ProfessionHelper.php';
-    require_once __DIR__ . '/../Model/MiningService.php';
-    require_once __DIR__ . '/../Model/CraftingService.php';
-
-    $presenter = new ApiPresenter(new DataStore());
-    header('Content-Type: application/json');
-    echo $presenter->handle($_REQUEST);
-}
