@@ -2,6 +2,9 @@ const API_BASE = 'api.php';
 const USER_ID = 1;
 const ZONE_ID = 1;
 const TOOL_ID = 1000;
+const MINING_RADIUS = 60;
+const MAX_SIMULTANEOUS_NODES = 10;
+const NODE_SIZE = 18;
 
 const minimap = document.getElementById('minimap');
 const bar = document.getElementById('progress-bar');
@@ -15,17 +18,36 @@ const toolStatus = document.getElementById('tool-status');
 const repairBtn = document.getElementById('repair-btn');
 
 let nodes = [];
-let currentTask = null;
+let nodeElements = new Map();
 let consumed = {};
 let progressRaf = null;
-let hoveredNodeId = null;
+let lastHoverPosition = null;
+let activeTasks = new Map();
+let pendingStarts = new Set();
+let aoeIndicator = null;
+let craftTaskId = null;
 
 init();
 
 async function init() {
+  setupAoeIndicator();
+  minimap.addEventListener('mousemove', handleMinimapMove);
+  minimap.addEventListener('mouseleave', handleMinimapLeave);
+
   setStatus('Loading zone...');
   await Promise.all([loadZone(), refreshInventory()]);
   setStatus('Idle');
+}
+
+function setupAoeIndicator() {
+  if (!aoeIndicator) {
+    aoeIndicator = document.createElement('div');
+    aoeIndicator.className = 'aoe-indicator';
+    aoeIndicator.style.display = 'none';
+  }
+  if (!aoeIndicator.parentNode) {
+    minimap.appendChild(aoeIndicator);
+  }
 }
 
 async function loadZone() {
@@ -40,6 +62,8 @@ async function loadZone() {
 
 function renderNodes() {
   minimap.innerHTML = '';
+  nodeElements.clear();
+
   nodes.forEach((node) => {
     const el = document.createElement('div');
     el.className = `node state-${node.state}`;
@@ -49,30 +73,76 @@ function renderNodes() {
     if (node.state !== 'available') {
       el.classList.add('disabled');
     }
-    el.addEventListener('mouseenter', () => {
-      hoveredNodeId = node.node_id;
-      startMining(node, el);
-    });
-    el.addEventListener('mouseleave', () => {
-      hoveredNodeId = null;
-      cancelActiveTask('Těžba přerušena (kurzor mimo rudu).', node.node_id);
-    });
+    nodeElements.set(node.node_id, el);
     minimap.appendChild(el);
   });
+
+  setupAoeIndicator();
 }
 
-async function startMining(node, el) {
-  if (currentTask) {
-    setStatus('Already working on a task.');
-    return;
-  }
+function handleMinimapMove(event) {
+  const rect = minimap.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  lastHoverPosition = { x, y };
 
-  if (node.state !== 'available') {
-    setStatus('Node is not available yet.');
-    return;
-  }
+  aoeIndicator.style.display = 'block';
+  aoeIndicator.style.left = `${x}px`;
+  aoeIndicator.style.top = `${y}px`;
 
-  setStatus('Starting mining...');
+  const inRangeNodes = [];
+  nodes.forEach((node) => {
+    const centerX = node.x + NODE_SIZE / 2;
+    const centerY = node.y + NODE_SIZE / 2;
+    const distance = Math.hypot(centerX - x, centerY - y);
+    const inside = distance <= MINING_RADIUS;
+    const el = nodeElements.get(node.node_id);
+    if (el) {
+      el.classList.toggle('in-range', inside);
+    }
+    if (inside) {
+      inRangeNodes.push(node);
+    }
+  });
+
+  manageAreaMining(inRangeNodes);
+}
+
+function handleMinimapLeave() {
+  lastHoverPosition = null;
+  aoeIndicator.style.display = 'none';
+  nodeElements.forEach((el) => el.classList.remove('in-range'));
+  cancelAllActiveTasks('Těžba přerušena (mimo mapu).');
+}
+
+function manageAreaMining(inRangeNodes) {
+  const inRangeIds = new Set(inRangeNodes.map((n) => n.node_id));
+
+  Array.from(activeTasks.keys()).forEach((nodeId) => {
+    if (!inRangeIds.has(nodeId)) {
+      cancelTaskForNode(nodeId, 'Těžba přerušena (mimo dosah).');
+    }
+  });
+
+  const availableNodes = inRangeNodes
+    .filter((n) => n.state === 'available')
+    .slice(0, MAX_SIMULTANEOUS_NODES);
+
+  availableNodes.forEach((node) => {
+    if (!activeTasks.has(node.node_id) && !pendingStarts.has(node.node_id)) {
+      startAreaMining(node);
+    }
+  });
+
+  if (!availableNodes.length && !activeTasks.size) {
+    setStatus('Žádné uzly v dosahu.');
+    resetProgress();
+  }
+}
+
+async function startAreaMining(node) {
+  pendingStarts.add(node.node_id);
+  setStatus('Spouštím těžbu...');
   try {
     const data = await callApi({
       action: 'startMining',
@@ -81,90 +151,118 @@ async function startMining(node, el) {
       nodeId: node.node_id,
       toolId: TOOL_ID,
     });
-    if (hoveredNodeId !== node.node_id) {
+
+    if (!isNodeStillInRange(node)) {
       await callApi({ action: 'cancelTask', taskId: data.task_id });
-      resetProgress();
       return;
     }
-    currentTask = {
-      id: data.task_id,
+
+    const startedAt = Date.now();
+    const taskInfo = {
+      taskId: data.task_id,
       nodeId: node.node_id,
-      cancelled: false,
+      startedAt,
+      etaMs: data.eta_ms,
+      timer: null,
     };
-    el.dataset.activeNode = '1';
-    runProgress(data.eta_ms, () => finishMining(currentTask.id), currentTask);
+
+    taskInfo.timer = setTimeout(() => finishAreaMining(taskInfo), data.eta_ms);
+    activeTasks.set(node.node_id, taskInfo);
+    updateProgressLoop();
   } catch (err) {
     setStatus(err.message);
     await loadZone();
+  } finally {
+    pendingStarts.delete(node.node_id);
   }
 }
 
-async function finishMining(taskId) {
-  const taskSnapshot = currentTask;
-  currentTask = null;
-  resetProgress();
+function isNodeStillInRange(node) {
+  if (!lastHoverPosition) {
+    return false;
+  }
+  const centerX = node.x + NODE_SIZE / 2;
+  const centerY = node.y + NODE_SIZE / 2;
+  const distance = Math.hypot(centerX - lastHoverPosition.x, centerY - lastHoverPosition.y);
+  return distance <= MINING_RADIUS;
+}
 
+async function cancelTaskForNode(nodeId, reason) {
+  const task = activeTasks.get(nodeId);
+  if (!task) {
+    return;
+  }
+  activeTasks.delete(nodeId);
+  if (task.timer) {
+    clearTimeout(task.timer);
+  }
+  setStatus(reason);
   try {
-    const data = await callApi({ action: 'finishMining', taskId });
+    await callApi({ action: 'cancelTask', taskId: task.taskId });
+  } catch (err) {
+    console.warn('Failed to cancel task', err);
+  }
+  updateProgressLoop();
+}
+
+function cancelAllActiveTasks(reason) {
+  Array.from(activeTasks.keys()).forEach((nodeId) => cancelTaskForNode(nodeId, reason));
+}
+
+async function finishAreaMining(taskInfo) {
+  const existing = activeTasks.get(taskInfo.nodeId);
+  if (!existing || existing.taskId !== taskInfo.taskId) {
+    return;
+  }
+  activeTasks.delete(taskInfo.nodeId);
+  if (existing.timer) {
+    clearTimeout(existing.timer);
+  }
+  try {
+    const data = await callApi({ action: 'finishMining', taskId: taskInfo.taskId });
     const gained = Array.isArray(data.items_gained) && data.items_gained.length ? data.items_gained[0] : null;
     const materialId = gained ? gained.material_id : null;
     const matchedNode = nodes.find((n) => n.material_id === materialId);
-    const name = matchedNode ? matchedNode.material_name : 'material';
+    const name = matchedNode ? matchedNode.material_name : 'materiál';
     const qty = gained ? gained.qty : 0;
     setStatus(
-      `Gained ${qty} ${name} (tool durability ${data.tool_durability}/${toolStatus.dataset.maxDurability || '?'})`
+      `Získáno ${qty} ${name} (odolnost nástroje ${data.tool_durability}/${toolStatus.dataset.maxDurability || '?'})`
     );
     await Promise.all([refreshInventory(), loadZone()]);
   } catch (err) {
     setStatus(err.message);
-    if (taskSnapshot && taskSnapshot.nodeId) {
-      await loadZone();
-    }
+    await loadZone();
+  } finally {
+    updateProgressLoop();
   }
 }
 
-function runProgress(duration, callback, taskRef) {
-  const start = Date.now();
+function updateProgressLoop() {
+  if (progressRaf) {
+    cancelAnimationFrame(progressRaf);
+    progressRaf = null;
+  }
+
   const tick = () => {
-    if (taskRef && taskRef.cancelled) {
+    if (!activeTasks.size) {
       resetProgress();
+      setStatus('Idle');
+      progressRaf = null;
       return;
     }
-    const elapsed = Date.now() - start;
-    const pct = Math.min(1, elapsed / duration);
+
+    const now = Date.now();
+    const starts = Array.from(activeTasks.values()).map((t) => t.startedAt);
+    const ends = Array.from(activeTasks.values()).map((t) => t.startedAt + t.etaMs);
+    const areaStart = Math.min(...starts);
+    const areaEnd = Math.max(...ends);
+    const pct = Math.min(1, (now - areaStart) / (areaEnd - areaStart));
     bar.style.width = `${pct * 100}%`;
-    setStatus(`Progress ${(pct * 100).toFixed(0)}%`);
-    if (pct < 1) {
-      progressRaf = requestAnimationFrame(tick);
-    } else {
-      callback();
-    }
+    setStatus(`Těžím ${activeTasks.size} uzlů (${(pct * 100).toFixed(0)}%)`);
+    progressRaf = requestAnimationFrame(tick);
   };
-  tick();
-}
 
-async function cancelActiveTask(reason, nodeId) {
-  if (!currentTask) {
-    return;
-  }
-
-  const taskId = currentTask.id;
-  currentTask.cancelled = true;
-  currentTask = null;
-  resetProgress();
-  setStatus(reason);
-
-  if (taskId) {
-    try {
-      await callApi({ action: 'cancelTask', taskId });
-    } catch (err) {
-      console.warn('Failed to cancel task', err);
-    }
-  }
-
-  if (nodeId) {
-    await loadZone();
-  }
+  progressRaf = requestAnimationFrame(tick);
 }
 
 async function refreshInventory() {
@@ -179,8 +277,8 @@ function renderInventory(slots) {
   slots.forEach((slot) => {
     const item = document.createElement('div');
     item.className = 'inventory-item';
-    const label = slot.name ? `${slot.name}` : `Material ${slot.material_id}`;
-    item.textContent = `${label}: ${slot.qty}`;
+    const labelText = slot.name ? `${slot.name}` : `Material ${slot.material_id}`;
+    item.textContent = `${labelText}: ${slot.qty}`;
     item.draggable = true;
     item.dataset.materialId = slot.material_id;
     item.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', slot.material_id));
@@ -201,8 +299,8 @@ function renderTotals(slots) {
     .forEach((slot) => {
       const row = document.createElement('div');
       row.className = 'resource-row';
-      const label = slot.name ? slot.name : `Material ${slot.material_id}`;
-      row.innerHTML = `<span>${label}</span><strong>${slot.qty}</strong>`;
+      const labelText = slot.name ? slot.name : `Material ${slot.material_id}`;
+      row.innerHTML = `<span>${labelText}</span><strong>${slot.qty}</strong>`;
       totalsEl.appendChild(row);
     });
 }
@@ -253,8 +351,8 @@ craftBtn.addEventListener('click', async () => {
   setStatus('Crafting...');
   try {
     const data = await callApi({ action: 'craft', userId: USER_ID, recipeId });
-    currentTask = data.task_id;
-    runProgress(data.eta_ms, () => finishCraft(currentTask));
+    craftTaskId = data.task_id;
+    runProgress(data.eta_ms, () => finishCraft(craftTaskId));
   } catch (err) {
     setStatus(err.message);
   }
@@ -270,7 +368,7 @@ async function finishCraft(taskId) {
   } catch (err) {
     setStatus(err.message);
   } finally {
-    currentTask = null;
+    craftTaskId = null;
   }
 }
 
@@ -301,6 +399,22 @@ function resetProgress() {
     progressRaf = null;
   }
   bar.style.width = '0%';
+}
+
+function runProgress(duration, callback) {
+  const start = Date.now();
+  const tick = () => {
+    const elapsed = Date.now() - start;
+    const pct = Math.min(1, elapsed / duration);
+    bar.style.width = `${pct * 100}%`;
+    setStatus(`Progress ${(pct * 100).toFixed(0)}%`);
+    if (pct < 1) {
+      progressRaf = requestAnimationFrame(tick);
+    } else {
+      callback();
+    }
+  };
+  tick();
 }
 
 async function callApi(params) {

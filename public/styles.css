@@ -21,11 +21,23 @@ body {
 
 .minimap {
   position: relative;
-  width: 240px;
-  height: 160px;
+  width: 480px;
+  height: 300px;
   background: #1e293b;
   border: 2px solid #334155;
   border-radius: 6px;
+  overflow: hidden;
+}
+
+.aoe-indicator {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border: 2px dashed rgba(59, 130, 246, 0.65);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.35);
 }
 
 .node {
@@ -37,6 +49,11 @@ body {
   border: 2px solid #16a34a;
   cursor: pointer;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.node.in-range {
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
+  transform: scale(1.15);
 }
 
 .node:hover {

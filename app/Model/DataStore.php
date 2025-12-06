@@ -53,8 +53,13 @@ class DataStore
 
         $this->zones = [
             1 => ['id' => 1, 'name' => 'Copper Hills', 'biome' => 'mountain', 'spawn_table' => [
-                ['node_id' => 101, 'material_id' => 1, 'qty' => 3, 'cooldown_ms' => 3000, 'respawn_ms' => 4000, 'x' => 30, 'y' => 40],
-                ['node_id' => 102, 'material_id' => 2, 'qty' => 2, 'cooldown_ms' => 5000, 'respawn_ms' => 6000, 'x' => 120, 'y' => 80],
+                // keep the first two entries stable for tests
+                ['node_id' => 101, 'material_id' => 1, 'qty' => 3, 'cooldown_ms' => 3000, 'respawn_ms' => 4000, 'x' => 50, 'y' => 80],
+                ['node_id' => 102, 'material_id' => 2, 'qty' => 2, 'cooldown_ms' => 5000, 'respawn_ms' => 6000, 'x' => 180, 'y' => 120],
+                ['node_id' => 103, 'material_id' => 1, 'qty' => 2, 'cooldown_ms' => 3500, 'respawn_ms' => 4500, 'x' => 260, 'y' => 50],
+                ['node_id' => 104, 'material_id' => 2, 'qty' => 3, 'cooldown_ms' => 4200, 'respawn_ms' => 5200, 'x' => 340, 'y' => 170],
+                ['node_id' => 105, 'material_id' => 1, 'qty' => 4, 'cooldown_ms' => 3100, 'respawn_ms' => 4100, 'x' => 120, 'y' => 230],
+                ['node_id' => 106, 'material_id' => 2, 'qty' => 1, 'cooldown_ms' => 2800, 'respawn_ms' => 3800, 'x' => 410, 'y' => 90],
             ]],
         ];
 
