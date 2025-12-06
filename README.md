@@ -10,3 +10,9 @@ php -S 0.0.0.0:8000 -t public
 ```
 
 3. Otevřete prohlížeč na `http://localhost:8000/`. Frontend volá API přes `public/api.php`, které instancuje in-memory datastore se seedovanými daty a ihned je připravené k použití.
+
+## Spuštění na XAMPP/Apache
+
+1. Zkopírujte repozitář do `htdocs` (např. `htdocs/Prvn-test`).
+2. Nastavte `DocumentRoot` na adresář `public` v projektu, nikoli přímo na soubor `index.html` (např. `C:/xampp/htdocs/Prvn-test/public`). Díky tomu budou mít prohlížeč i Apache k dispozici jak `index.html`, tak `api.php` se stejnou relativní cestou `api.php`.
+3. Restartujte Apache a otevřete `http://localhost/Prvn-test/public/` (nebo název vašeho VirtualHostu). Pokud nechcete nastavovat VirtualHost, můžete také zkopírovat obsah složky `public` přímo do `htdocs` a přistupovat na `http://localhost/index.html` – důležité je, aby `api.php` leželo ve stejné složce jako `index.html`, protože frontend volá API relativní cestou `api.php`.
