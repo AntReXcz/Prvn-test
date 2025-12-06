@@ -2,6 +2,12 @@
 
 error_reporting(E_ALL);
 
+require_once __DIR__ . '/../app/Model/DataStore.php';
+require_once __DIR__ . '/../app/Model/ProfessionHelper.php';
+require_once __DIR__ . '/../app/Model/MiningService.php';
+require_once __DIR__ . '/../app/Model/CraftingService.php';
+require_once __DIR__ . '/../app/Presenters/ApiPresenter.php';
+
 set_error_handler(function ($severity, $message, $file, $line) {
     throw new \ErrorException($message, 0, $severity, $file, $line);
 });
@@ -13,12 +19,6 @@ set_exception_handler(function ($exception) {
 });
 
 session_start();
-
-require_once __DIR__ . '/../app/Model/DataStore.php';
-require_once __DIR__ . '/../app/Model/ProfessionHelper.php';
-require_once __DIR__ . '/../app/Model/MiningService.php';
-require_once __DIR__ . '/../app/Model/CraftingService.php';
-require_once __DIR__ . '/../app/Presenters/ApiPresenter.php';
 
 use App\Model\DataStore;
 use App\Presenters\ApiPresenter;
