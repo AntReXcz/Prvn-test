@@ -142,6 +142,11 @@ class DataStore
         return $this->materials[$id] ?? null;
     }
 
+    public function getProfessions(): array
+    {
+        return $this->professions;
+    }
+
     public function getMaterials(): array
     {
         return $this->materials;
@@ -215,6 +220,41 @@ class DataStore
     public function getProfessionLevels(int $professionId): array
     {
         return $this->professionLevels[$professionId] ?? [];
+    }
+
+    public function getProfessionProgress(int $userId): array
+    {
+        $user = $this->getUser($userId);
+        if (!$user) {
+            return [];
+        }
+
+        $progress = [];
+        foreach ($this->professions as $profession) {
+            $profId = $profession['id'];
+            $levels = $this->getProfessionLevels($profId);
+            $userProf = $user['professions'][$profId] ?? ['xp' => 0, 'level' => 1];
+            $currentLevel = ProfessionHelper::getLevelForXp($levels, $userProf['xp']);
+
+            $nextLevel = null;
+            foreach ($levels as $level) {
+                if ($level['xp_required'] > $userProf['xp']) {
+                    $nextLevel = $level;
+                    break;
+                }
+            }
+
+            $progress[] = [
+                'id' => $profId,
+                'name' => $profession['name'],
+                'xp' => $userProf['xp'],
+                'level' => $currentLevel['level'],
+                'next_level_xp' => $nextLevel['xp_required'] ?? null,
+                'modifiers' => $currentLevel['modifiers'] ?? [],
+            ];
+        }
+
+        return $progress;
     }
 
     public function getUser(int $userId): ?array

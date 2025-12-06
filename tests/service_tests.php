@@ -30,6 +30,8 @@ $start = $mining->startMining(1, 1, 101, 1000);
 assertTrue(isset($start['task_id']), 'Task id returned for mining');
 
 $taskId = $start['task_id'];
+$userBeforeMining = $store->getUser(1);
+$xpBeforeMining = $userBeforeMining['professions'][1]['xp'];
 
 $cancelStart = $mining->startMining(1, 1, 102, 1000);
 assertTrue(isset($cancelStart['task_id']), 'Task id returned for cancellable mining');
@@ -54,6 +56,8 @@ $task->setValue($store, $tasks);
 $result = $mining->finishMining($taskId);
 assertTrue($result['status'] === 'completed', 'Mining completion');
 assertTrue($result['tool_durability'] === $store->getToolDurability(1, 1000), 'Durability returned matches store');
+$userAfterMining = $store->getUser(1);
+assertTrue($userAfterMining['professions'][1]['xp'] > $xpBeforeMining, 'Mining awards XP');
 
 $durabilityBefore = $store->getToolDurability(1, 1000);
 $store->damageTool(1, 1000, $durabilityBefore);
@@ -96,5 +100,19 @@ $tasks[$taskId]['finish_at'] = (new DateTimeImmutable())->sub(new DateInterval('
 $task->setValue($store, $tasks);
 $crafted = $crafting->finishCrafting($taskId);
 assertTrue($crafted['status'] === 'completed', 'Crafting completion');
+$user = $store->getUser(1);
+assertTrue($user['professions'][2]['xp'] >= 50, 'Crafting awards XP');
+
+$user['professions'][2]['xp'] = 140;
+$user['professions'][2]['level'] = 1;
+$store->updateUser(1, $user);
+$craftLevelUp = $crafting->craft(1, 1);
+$taskId = $craftLevelUp['task_id'];
+$tasks = $task->getValue($store);
+$tasks[$taskId]['finish_at'] = (new DateTimeImmutable())->sub(new DateInterval('PT1S'));
+$task->setValue($store, $tasks);
+$crafting->finishCrafting($taskId);
+$userAfterCraft = $store->getUser(1);
+assertTrue($userAfterCraft['professions'][2]['level'] > 1, 'Crafting XP can level up Smithing');
 
 echo "All tests passed\n";

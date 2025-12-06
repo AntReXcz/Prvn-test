@@ -15,6 +15,8 @@ Pokud jste spouštěli demo s dřívější verzí kódu a nevidíte nově př
 
 Kdykoli můžete použít i tlačítko **Factory reset** (vedle výběru mapy), které vyčistí session, znovu nahraje seedovaná data a vrátí vás na výchozí inventář.
 
+HUD zobrazuje postup v profesích (Mining a Smithing) včetně XP progress baru a aktuálního levelu; XP získáte za každý dokončený harvest i craft.
+
 ## Spuštění na XAMPP/Apache
 
 1. Zkopírujte repozitář do `htdocs` (např. `htdocs/Prvn-test`).

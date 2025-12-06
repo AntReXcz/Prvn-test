@@ -68,6 +68,79 @@ h1 {
   width: 320px;
 }
 
+.professions {
+  background: #1e293b;
+  border: 2px solid #334155;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.professions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.professions-header small {
+  color: #94a3b8;
+}
+
+.profession-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profession-card {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.2);
+}
+
+.profession-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.profession-name {
+  font-weight: 700;
+}
+
+.profession-level {
+  color: #a5b4fc;
+  font-size: 13px;
+}
+
+.xp-track {
+  position: relative;
+  height: 10px;
+  background: #111827;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid #1e293b;
+}
+
+.xp-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #14b8a6, #3b82f6);
+  width: 0;
+  transition: width 0.2s ease;
+}
+
+.xp-meta {
+  font-size: 12px;
+  color: #cbd5e1;
+  margin-top: 4px;
+}
+
 .minimap {
   position: relative;
   width: 620px;

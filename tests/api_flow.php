@@ -60,4 +60,9 @@ if (!isset($finishResponse['tool_durability'])) {
     throw new RuntimeException('Tool durability should be returned after mining');
 }
 
+$status = json_decode($presenter->handle(['action' => 'status', 'userId' => 1]), true);
+if (!count($status['professions'] ?? [])) {
+    throw new RuntimeException('Professions should be returned in status');
+}
+
 echo "API flow ok\n";

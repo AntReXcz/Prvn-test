@@ -36,6 +36,7 @@ class ApiPresenter
                     'tasks' => $this->dataStore->getTasks(),
                     'inventory' => $this->getInventory((int)$request['userId']),
                     'tools' => $this->getTools((int)$request['userId']),
+                    'professions' => $this->dataStore->getProfessionProgress((int)$request['userId']),
                 ]),
                 default => $this->json(['error' => 'Unknown action'], 400),
             };

@@ -13,6 +13,7 @@ const label = document.getElementById('progress-label');
 const inventoryEl = document.getElementById('inventory');
 const totalsEl = document.getElementById('resource-totals');
 const requirementsEl = document.getElementById('requirements');
+const professionsEl = document.getElementById('professions');
 const dropTarget = document.getElementById('drop-target');
 const craftBtn = document.getElementById('craft-btn');
 const toolStatus = document.getElementById('tool-status');
@@ -306,8 +307,9 @@ async function finishAreaMining(taskInfo) {
     const matchedNode = nodes.find((n) => n.material_id === materialId);
     const name = matchedNode ? matchedNode.material_name : 'materiál';
     const qty = gained ? gained.qty : 0;
+    const xp = data.xp_gained ? `, +${data.xp_gained} XP` : '';
     setStatus(
-      `Získáno ${qty} ${name} (odolnost nástroje ${data.tool_durability}/${toolStatus.dataset.maxDurability || '?'})`
+      `Získáno ${qty} ${name}${xp} (odolnost nástroje ${data.tool_durability}/${toolStatus.dataset.maxDurability || '?'})`
     );
     await Promise.all([refreshInventory(), loadZone()]);
   } catch (err) {
@@ -366,6 +368,7 @@ async function refreshInventory() {
   renderInventory(data.inventory || []);
   renderRequirements();
   renderTools(data.tools || []);
+  renderProfessions(data.professions || []);
 }
 
 function renderInventory(slots) {
@@ -459,7 +462,8 @@ async function finishCraft(taskId) {
     const data = await callApi({ action: 'finishCraft', taskId });
     const crafted = Array.isArray(data.items_gained) && data.items_gained.length ? data.items_gained[0] : null;
     const craftedId = crafted ? crafted.item_id : 'unknown';
-    setStatus(`Crafted item ${craftedId}`);
+    const xp = data.xp_gained ? `, +${data.xp_gained} XP` : '';
+    setStatus(`Crafted item ${craftedId}${xp}`);
     await refreshInventory();
   } catch (err) {
     setStatus(err.message);
@@ -487,6 +491,40 @@ repairBtn.addEventListener('click', async () => {
 
 function setStatus(text) {
   label.textContent = text;
+}
+
+function renderProfessions(professions) {
+  professionsEl.innerHTML = '';
+  if (!professions.length) {
+    professionsEl.textContent = 'Žádná profese';
+    return;
+  }
+
+  professions.forEach((prof) => {
+    const card = document.createElement('div');
+    card.className = 'profession-card';
+    const nextXp = prof.next_level_xp;
+    const currentXp = prof.xp || 0;
+    const pct = nextXp ? Math.min(1, currentXp / nextXp) : 1;
+    const percentText = Math.round(pct * 100);
+    const nextText = nextXp ? `${currentXp}/${nextXp} XP` : `${currentXp} XP (max)`;
+
+    const speedMod = prof.modifiers && prof.modifiers.speed_multiplier ? prof.modifiers.speed_multiplier : 1;
+    const speedText = speedMod !== 1 ? `Rychlost ×${(1 / speedMod).toFixed(2)}` : 'Základní rychlost';
+
+    card.innerHTML = `
+      <div class="profession-header">
+        <span class="profession-name">${prof.name}</span>
+        <span class="profession-level">Lv ${prof.level || 1}</span>
+      </div>
+      <div class="xp-track">
+        <div class="xp-bar" style="width:${percentText}%"></div>
+      </div>
+      <div class="xp-meta">${nextText} • ${speedText}</div>
+    `;
+
+    professionsEl.appendChild(card);
+  });
 }
 
 function resetProgress() {
