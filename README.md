@@ -13,6 +13,8 @@ php -S 0.0.0.0:8000 -t public
 
 Pokud jste spouštěli demo s dřívější verzí kódu a nevidíte nově přidané mapy nebo materiály, stačí obnovit stránku – datastore se díky verzování automaticky znovu seeduje a doplní nové oblasti a suroviny.
 
+Kdykoli můžete použít i tlačítko **Factory reset** (vedle výběru mapy), které vyčistí session, znovu nahraje seedovaná data a vrátí vás na výchozí inventář.
+
 ## Spuštění na XAMPP/Apache
 
 1. Zkopírujte repozitář do `htdocs` (např. `htdocs/Prvn-test`).

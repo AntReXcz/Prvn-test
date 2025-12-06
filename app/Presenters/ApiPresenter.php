@@ -31,6 +31,7 @@ class ApiPresenter
                 'finishCraft' => $this->json($this->craftingService->finishCrafting((int)$request['taskId'])),
                 'zoneStatus' => $this->json(['nodes' => $this->dataStore->getZoneNodesWithState((int)$request['zoneId'])]),
                 'listZones' => $this->json(['zones' => $this->dataStore->getZones()]),
+                'resetSession' => $this->json($this->resetSession()),
                 'status' => $this->json([
                     'tasks' => $this->dataStore->getTasks(),
                     'inventory' => $this->getInventory((int)$request['userId']),
@@ -81,5 +82,15 @@ class ApiPresenter
         }
 
         return $tools;
+    }
+
+    private function resetSession(): array
+    {
+        $this->dataStore->reset();
+        return [
+            'status' => 'reset',
+            'version' => $this->dataStore->getVersion(),
+            'zones' => $this->dataStore->getZones(),
+        ];
     }
 }

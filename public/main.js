@@ -7,6 +7,7 @@ const NODE_SIZE = 18;
 
 const minimap = document.getElementById('minimap');
 const zoneSelect = document.getElementById('zone-select');
+const resetBtn = document.getElementById('reset-session');
 const bar = document.getElementById('progress-bar');
 const label = document.getElementById('progress-label');
 const inventoryEl = document.getElementById('inventory');
@@ -36,6 +37,7 @@ async function init() {
   minimap.addEventListener('mousemove', handleMinimapMove);
   minimap.addEventListener('mouseleave', handleMinimapLeave);
   zoneSelect.addEventListener('change', handleZoneChange);
+  resetBtn.addEventListener('click', resetSession);
 
   setStatus('Načítám mapy...');
   await Promise.all([loadZones(), refreshInventory()]);
@@ -74,6 +76,31 @@ async function loadZones() {
       zoneSelect.value = currentZoneId;
       await loadZone();
     }
+  } catch (err) {
+    setStatus(err.message);
+  }
+}
+
+async function resetSession() {
+  setStatus('Resetuji demo...');
+  cancelAllActiveTasks('Resetuji demo');
+  resetProgress();
+  try {
+    const data = await callApi({ action: 'resetSession' });
+    zones = data.zones || [];
+    zoneSelect.innerHTML = '';
+    zones.forEach((zone) => {
+      const opt = document.createElement('option');
+      opt.value = zone.id;
+      opt.textContent = `${zone.name} (${zone.biome})`;
+      zoneSelect.appendChild(opt);
+    });
+    currentZoneId = zones[0] ? zones[0].id : null;
+    if (currentZoneId !== null) {
+      zoneSelect.value = currentZoneId;
+      await Promise.all([loadZone(), refreshInventory()]);
+    }
+    setStatus('Hotovo. Session resetována.');
   } catch (err) {
     setStatus(err.message);
   }

@@ -11,6 +11,11 @@ use App\Model\DataStore;
 
 $presenter = new ApiPresenter(new DataStore());
 
+$reset = json_decode($presenter->handle(['action' => 'resetSession']), true);
+if (($reset['status'] ?? '') !== 'reset' || count($reset['zones'] ?? []) < 3) {
+    throw new RuntimeException('Reset should reseed zones');
+}
+
 $zones = json_decode($presenter->handle(['action' => 'listZones']), true);
 if (count($zones['zones'] ?? []) < 3) {
     throw new RuntimeException('Expected multiple zones to be returned');

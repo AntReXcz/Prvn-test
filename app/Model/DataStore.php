@@ -28,6 +28,11 @@ class DataStore
         $this->seed();
     }
 
+    public function reset(): void
+    {
+        $this->seed();
+    }
+
     private function seed(): void
     {
         $this->materials = [
