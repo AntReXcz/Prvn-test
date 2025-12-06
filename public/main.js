@@ -3,7 +3,7 @@ const USER_ID = 1;
 const TOOL_ID = 1000;
 const MINING_RADIUS = 70;
 const MAX_SIMULTANEOUS_NODES = 10;
-const NODE_SIZE = 18;
+const NODE_SIZE = 26;
 
 const minimap = document.getElementById('minimap');
 const zoneSelect = document.getElementById('zone-select');
@@ -123,6 +123,11 @@ async function loadZone() {
     nodes = data.nodes || [];
     renderNodes();
     const zoneMeta = zones.find((z) => z.id === currentZoneId);
+    if (zoneMeta && zoneMeta.biome) {
+      minimap.dataset.biome = zoneMeta.biome;
+    } else {
+      delete minimap.dataset.biome;
+    }
     const zoneName = zoneMeta ? zoneMeta.name : 'Mapa';
     setStatus(`${zoneName} načtena.`);
   } catch (err) {
