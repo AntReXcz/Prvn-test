@@ -1,5 +1,17 @@
 <?php
 
+error_reporting(E_ALL);
+
+set_error_handler(function ($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
+set_exception_handler(function ($exception) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => $exception->getMessage()], JSON_PRETTY_PRINT);
+});
+
 session_start();
 
 require_once __DIR__ . '/../app/Model/DataStore.php';
@@ -10,9 +22,14 @@ require_once __DIR__ . '/../app/Presenters/ApiPresenter.php';
 
 use App\Model\DataStore;
 use App\Presenters\ApiPresenter;
+use ErrorException;
 
 $dataStore = $_SESSION['datastore'] ?? new DataStore();
+
 $presenter = new ApiPresenter($dataStore);
 header('Content-Type: application/json');
-echo $presenter->handle($_REQUEST);
+
+$response = $presenter->handle($_REQUEST);
 $_SESSION['datastore'] = $dataStore;
+
+echo $response;
