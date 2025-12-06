@@ -106,15 +106,18 @@ async function finishMining(taskId) {
 
   try {
     const data = await callApi({ action: 'finishMining', taskId });
-    const gained = data.items_gained?.[0];
-    const name = nodes.find((n) => n.material_id === gained?.material_id)?.material_name || 'material';
+    const gained = Array.isArray(data.items_gained) && data.items_gained.length ? data.items_gained[0] : null;
+    const materialId = gained ? gained.material_id : null;
+    const matchedNode = nodes.find((n) => n.material_id === materialId);
+    const name = matchedNode ? matchedNode.material_name : 'material';
+    const qty = gained ? gained.qty : 0;
     setStatus(
-      `Gained ${gained?.qty ?? 0} ${name} (tool durability ${data.tool_durability}/${toolStatus.dataset.maxDurability || '?'})`
+      `Gained ${qty} ${name} (tool durability ${data.tool_durability}/${toolStatus.dataset.maxDurability || '?'})`
     );
     await Promise.all([refreshInventory(), loadZone()]);
   } catch (err) {
     setStatus(err.message);
-    if (taskSnapshot?.nodeId) {
+    if (taskSnapshot && taskSnapshot.nodeId) {
       await loadZone();
     }
   }
@@ -123,7 +126,7 @@ async function finishMining(taskId) {
 function runProgress(duration, callback, taskRef) {
   const start = Date.now();
   const tick = () => {
-    if (taskRef?.cancelled) {
+    if (taskRef && taskRef.cancelled) {
       resetProgress();
       return;
     }
@@ -260,7 +263,9 @@ craftBtn.addEventListener('click', async () => {
 async function finishCraft(taskId) {
   try {
     const data = await callApi({ action: 'finishCraft', taskId });
-    setStatus(`Crafted item ${data.items_gained?.[0]?.item_id}`);
+    const crafted = Array.isArray(data.items_gained) && data.items_gained.length ? data.items_gained[0] : null;
+    const craftedId = crafted ? crafted.item_id : 'unknown';
+    setStatus(`Crafted item ${craftedId}`);
     await refreshInventory();
   } catch (err) {
     setStatus(err.message);
