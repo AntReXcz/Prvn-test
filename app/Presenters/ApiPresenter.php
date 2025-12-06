@@ -25,6 +25,7 @@ class ApiPresenter
             return match ($action) {
                 'startMining' => $this->json($this->miningService->startMining((int)$request['userId'], (int)$request['zoneId'], (int)$request['nodeId'], (int)$request['toolId'])),
                 'finishMining' => $this->json($this->miningService->finishMining((int)$request['taskId'])),
+                'repairTool' => $this->json($this->miningService->repairTool((int)$request['userId'], (int)$request['toolId'], (int)$request['materialId'], (int)$request['materialQty'])),
                 'craft' => $this->json($this->craftingService->craft((int)$request['userId'], (int)$request['recipeId'])),
                 'finishCraft' => $this->json($this->craftingService->finishCrafting((int)$request['taskId'])),
                 'zoneStatus' => $this->json(['nodes' => $this->dataStore->getZoneNodesWithState((int)$request['zoneId'])]),

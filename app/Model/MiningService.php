@@ -50,6 +50,10 @@ class MiningService
             throw new RuntimeException('Invalid tool');
         }
 
+        if ($this->dataStore->getToolDurability($userId, $toolId) <= 0) {
+            throw new RuntimeException('Tool is broken');
+        }
+
         $professionLevels = $this->dataStore->getProfessionLevels(1); // Mining
         $profession = $user['professions'][1] ?? ['xp' => 0, 'level' => 1];
         $currentLevel = ProfessionHelper::getLevelForXp($professionLevels, $profession['xp']);
@@ -115,6 +119,10 @@ class MiningService
         $rewardXp = 25 * $task['qty'];
         $this->addXp($task['user_id'], 1, $rewardXp); // Mining profession id 1
 
+        $this->dataStore->damageTool($task['user_id'], $task['tool_id'], 1);
+
+        $durabilityLeft = $this->dataStore->getToolDurability($task['user_id'], $task['tool_id']);
+
         return [
             'status' => 'completed',
             'items_gained' => [
@@ -122,6 +130,44 @@ class MiningService
             ],
             'xp_gained' => $rewardXp,
             'respawn_at' => $respawnAt->format(DateTimeImmutable::ATOM),
+            'tool_durability' => $durabilityLeft,
+        ];
+    }
+
+    public function repairTool(int $userId, int $toolId, int $materialId, int $materialQty): array
+    {
+        $tool = $this->dataStore->getItem($toolId);
+        if (!$tool || $tool['type'] !== 'tool') {
+            throw new RuntimeException('Invalid tool');
+        }
+
+        $maxDurability = $this->dataStore->getToolMaxDurability($toolId);
+        $currentDurability = $this->dataStore->getToolDurability($userId, $toolId);
+
+        if ($currentDurability >= $maxDurability) {
+            return ['status' => 'already_full', 'durability' => $currentDurability];
+        }
+
+        $available = $this->dataStore->getInventoryQty($userId, $materialId);
+        if ($available < $materialQty) {
+            throw new RuntimeException('Not enough materials to repair');
+        }
+
+        $restorePerUnit = 5;
+        $neededUnits = (int)ceil(($maxDurability - $currentDurability) / $restorePerUnit);
+        $unitsToUse = min($neededUnits, $materialQty);
+
+        if (!$this->dataStore->subtractInventoryQty($userId, $materialId, $unitsToUse)) {
+            throw new RuntimeException('Failed to consume repair materials');
+        }
+
+        $this->dataStore->repairTool($userId, $toolId, $unitsToUse * $restorePerUnit);
+        $newDurability = $this->dataStore->getToolDurability($userId, $toolId);
+
+        return [
+            'status' => 'repaired',
+            'durability' => $newDurability,
+            'materials_used' => $unitsToUse,
         ];
     }
 

@@ -36,4 +36,8 @@ if (($finishResponse['status'] ?? '') !== 'completed') {
     throw new RuntimeException('API flow failed');
 }
 
+if (!isset($finishResponse['tool_durability'])) {
+    throw new RuntimeException('Tool durability should be returned after mining');
+}
+
 echo "API flow ok\n";

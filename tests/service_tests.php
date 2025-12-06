@@ -41,6 +41,24 @@ $task->setValue($store, $tasks);
 
 $result = $mining->finishMining($taskId);
 assertTrue($result['status'] === 'completed', 'Mining completion');
+assertTrue($result['tool_durability'] === $store->getToolDurability(1, 1000), 'Durability returned matches store');
+
+$durabilityBefore = $store->getToolDurability(1, 1000);
+$store->damageTool(1, 1000, $durabilityBefore);
+$store->releaseNode(1, 101);
+
+try {
+    $mining->startMining(1, 1, 101, 1000);
+    assertTrue(false, 'Broken tool should prevent mining');
+} catch (RuntimeException $e) {
+    assertTrue(str_contains($e->getMessage(), 'broken'), 'Broken tool blocked');
+}
+
+$repair = $mining->repairTool(1, 1000, 1, 2);
+assertTrue($repair['status'] === 'repaired', 'Repair response');
+assertTrue($repair['durability'] > 0, 'Durability restored');
+
+$store->markNodeDepleted(1, 101, (new DateTimeImmutable())->add(new DateInterval('PT5S')));
 
 try {
     $mining->startMining(1, 1, 101, 1000);

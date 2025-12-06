@@ -18,6 +18,7 @@ class DataStore
     private array $tasks = [];
     private array $users = [];
     private array $nodeStates = [];
+    private array $toolDurability = [];
 
     public function __construct()
     {
@@ -33,10 +34,10 @@ class DataStore
         ];
 
         $this->items = [
-            1 => ['id' => 1, 'name' => 'Copper Pickaxe', 'type' => 'tool', 'stats' => ['speed' => 1.1]],
-            2 => ['id' => 2, 'name' => 'Bronze Pickaxe', 'type' => 'tool', 'stats' => ['speed' => 1.3]],
+            1 => ['id' => 1, 'name' => 'Copper Pickaxe', 'type' => 'tool', 'stats' => ['speed' => 1.1], 'durability' => 15],
+            2 => ['id' => 2, 'name' => 'Bronze Pickaxe', 'type' => 'tool', 'stats' => ['speed' => 1.3], 'durability' => 25],
             3 => ['id' => 3, 'name' => 'Bronze Ingot', 'type' => 'material', 'stats' => []],
-            1000 => ['id' => 1000, 'name' => 'Starter Pickaxe', 'type' => 'tool', 'stats' => ['speed' => 1.0]],
+            1000 => ['id' => 1000, 'name' => 'Starter Pickaxe', 'type' => 'tool', 'stats' => ['speed' => 1.0], 'durability' => 10],
         ];
 
         $this->recipes = [
@@ -90,6 +91,12 @@ class DataStore
                 1_000 => 1, // copper pickaxe item id 1
             ],
         ];
+
+        $this->toolDurability = [
+            1 => [
+                1000 => $this->items[1000]['durability'],
+            ],
+        ];
     }
 
     public function getMaterial(int $id): ?array
@@ -120,6 +127,41 @@ class DataStore
     public function getZone(int $id): ?array
     {
         return $this->zones[$id] ?? null;
+    }
+
+    public function damageTool(int $userId, int $toolId, int $amount): bool
+    {
+        $current = $this->getToolDurability($userId, $toolId);
+        if ($current <= 0) {
+            return false;
+        }
+
+        $this->toolDurability[$userId][$toolId] = max(0, $current - $amount);
+        return $this->toolDurability[$userId][$toolId] > 0;
+    }
+
+    public function repairTool(int $userId, int $toolId, int $amount): void
+    {
+        $max = $this->getToolMaxDurability($toolId);
+        $current = $this->getToolDurability($userId, $toolId);
+        $this->toolDurability[$userId][$toolId] = min($max, $current + $amount);
+    }
+
+    public function getToolDurability(int $userId, int $toolId): int
+    {
+        $this->toolDurability[$userId] ??= [];
+
+        if (!isset($this->toolDurability[$userId][$toolId])) {
+            $this->toolDurability[$userId][$toolId] = $this->getToolMaxDurability($toolId);
+        }
+
+        return $this->toolDurability[$userId][$toolId];
+    }
+
+    public function getToolMaxDurability(int $toolId): int
+    {
+        $item = $this->getItem($toolId);
+        return $item['durability'] ?? 0;
     }
 
     public function getProfessionLevels(int $professionId): array
