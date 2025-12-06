@@ -2,7 +2,6 @@
 
 namespace App\Model;
 
-use DateInterval;
 use DateTimeImmutable;
 use RuntimeException;
 
@@ -50,7 +49,7 @@ class MiningService
         $adjustedDuration = (int)($baseDuration * $speedMultiplier / $toolSpeed);
 
         $now = new DateTimeImmutable();
-        $finishAt = $now->add(new DateInterval('PT' . max(1, (int)ceil($adjustedDuration / 1000)) . 'S'));
+        $finishAt = $now->modify('+' . $adjustedDuration . ' milliseconds');
 
         $taskId = $this->dataStore->createTask([
             'type' => 'mining',

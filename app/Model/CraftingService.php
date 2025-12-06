@@ -2,7 +2,6 @@
 
 namespace App\Model;
 
-use DateInterval;
 use DateTimeImmutable;
 use RuntimeException;
 
@@ -46,7 +45,7 @@ class CraftingService
 
         $duration = (int)($recipe['time_ms'] * $speedMultiplier);
         $now = new DateTimeImmutable();
-        $finishAt = $now->add(new DateInterval('PT' . max(1, (int)ceil($duration / 1000)) . 'S'));
+        $finishAt = $now->modify('+' . $duration . ' milliseconds');
 
         $taskId = $this->dataStore->createTask([
             'type' => 'crafting',
