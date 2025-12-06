@@ -396,6 +396,22 @@ button:hover {
   margin-bottom: 8px;
 }
 
+.recipe-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.recipe-header select {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
 .requirement {
   background: #334155;
   padding: 4px 6px;

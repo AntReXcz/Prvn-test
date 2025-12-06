@@ -115,4 +115,22 @@ $crafting->finishCrafting($taskId);
 $userAfterCraft = $store->getUser(1);
 assertTrue($userAfterCraft['professions'][2]['level'] > 1, 'Crafting XP can level up Smithing');
 
+$copperCraft = $crafting->craft(1, 2);
+assertTrue(isset($copperCraft['task_id']), 'Copper ingot craft task created');
+$tasks = $task->getValue($store);
+$tasks[$copperCraft['task_id']]['finish_at'] = (new DateTimeImmutable())->sub(new DateInterval('PT1S'));
+$task->setValue($store, $tasks);
+$crafting->finishCrafting($copperCraft['task_id']);
+assertTrue($store->getInventoryQty(1, 6) === 1, 'Copper ingot added to inventory');
+
+$userBoosted = $store->getUser(1);
+$userBoosted['professions'][2]['xp'] = 200; // ensure level 2 smithing cost reduction
+$store->updateUser(1, $userBoosted);
+$tinCraft = $crafting->craft(1, 3);
+$tasks = $task->getValue($store);
+$tasks[$tinCraft['task_id']]['finish_at'] = (new DateTimeImmutable())->sub(new DateInterval('PT1S'));
+$task->setValue($store, $tasks);
+$crafting->finishCrafting($tinCraft['task_id']);
+assertTrue($store->getInventoryQty(1, 7) === 1, 'Tin ingot added to inventory');
+
 echo "All tests passed\n";

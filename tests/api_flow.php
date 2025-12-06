@@ -21,6 +21,11 @@ if (count($zones['zones'] ?? []) < 3) {
     throw new RuntimeException('Expected multiple zones to be returned');
 }
 
+$recipes = json_decode($presenter->handle(['action' => 'listRecipes', 'userId' => 1]), true);
+if (count($recipes['recipes'] ?? []) < 3) {
+    throw new RuntimeException('Expected ore smelting and bronze recipes');
+}
+
 $startResponse = json_decode($presenter->handle(['action' => 'startMining', 'userId' => 1, 'zoneId' => 1, 'nodeId' => 101, 'toolId' => 1000]), true);
 $taskId = $startResponse['task_id'];
 

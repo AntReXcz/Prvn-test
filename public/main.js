@@ -13,6 +13,8 @@ const label = document.getElementById('progress-label');
 const inventoryEl = document.getElementById('inventory');
 const totalsEl = document.getElementById('resource-totals');
 const requirementsEl = document.getElementById('requirements');
+const recipeSelect = document.getElementById('recipe-select');
+const recipeNameEl = document.getElementById('recipe-name');
 const professionsEl = document.getElementById('professions');
 const dropTarget = document.getElementById('drop-target');
 const craftBtn = document.getElementById('craft-btn');
@@ -23,6 +25,9 @@ let nodes = [];
 let zones = [];
 let nodeElements = new Map();
 let consumed = {};
+let recipes = [];
+let selectedRecipeId = null;
+let inventoryCache = [];
 let progressRaf = null;
 let lastHoverPosition = null;
 let activeTasks = new Map();
@@ -39,6 +44,7 @@ async function init() {
   minimap.addEventListener('mouseleave', handleMinimapLeave);
   zoneSelect.addEventListener('change', handleZoneChange);
   resetBtn.addEventListener('click', resetSession);
+  recipeSelect.addEventListener('change', handleRecipeChange);
 
   setStatus('Načítám mapy...');
   await Promise.all([loadZones(), refreshInventory()]);
@@ -136,6 +142,15 @@ async function handleZoneChange(event) {
   renderNodes();
   currentZoneId = nextZoneId;
   await loadZone();
+}
+
+function handleRecipeChange(event) {
+  const nextId = Number(event.target.value);
+  if (Number.isNaN(nextId)) {
+    return;
+  }
+  selectedRecipeId = nextId;
+  renderRecipes();
 }
 
 function renderNodes() {
@@ -365,8 +380,14 @@ function updateProgressLoop() {
 
 async function refreshInventory() {
   const data = await callApi({ action: 'status', userId: USER_ID });
-  renderInventory(data.inventory || []);
-  renderRequirements();
+  inventoryCache = data.inventory || [];
+  recipes = data.recipes || recipes;
+  if (!selectedRecipeId && recipes.length) {
+    selectedRecipeId = recipes[0].id;
+  }
+
+  renderInventory(inventoryCache);
+  renderRecipes();
   renderTools(data.tools || []);
   renderProfessions(data.professions || []);
 }
@@ -404,17 +425,50 @@ function renderTotals(slots) {
     });
 }
 
-function renderRequirements() {
+function renderRecipes() {
   requirementsEl.innerHTML = '';
-  const recipeReqs = [
-    { material_id: 1, qty: 2 },
-    { material_id: 2, qty: 1 },
-  ];
-  recipeReqs.forEach((req) => {
+  recipeSelect.innerHTML = '';
+
+  if (!recipes.length) {
+    const empty = document.createElement('div');
+    empty.textContent = 'Žádné recepty';
+    requirementsEl.appendChild(empty);
+    recipeSelect.disabled = true;
+    return;
+  }
+
+  recipeSelect.disabled = false;
+  recipes.forEach((recipe) => {
+    const opt = document.createElement('option');
+    opt.value = recipe.id;
+    opt.textContent = recipe.name;
+    if (recipe.id === selectedRecipeId) {
+      opt.selected = true;
+    }
+    recipeSelect.appendChild(opt);
+  });
+
+  const active = recipes.find((r) => r.id === selectedRecipeId) || recipes[0];
+  selectedRecipeId = active.id;
+  document.getElementById('recipe').dataset.recipeId = active.id;
+  recipeNameEl.textContent = active.name;
+
+  renderRequirements(active);
+}
+
+function renderRequirements(recipe) {
+  requirementsEl.innerHTML = '';
+  const inventoryById = inventoryCache.reduce((acc, slot) => {
+    acc[slot.material_id] = slot.qty;
+    return acc;
+  }, {});
+
+  recipe.requirements.forEach((req) => {
     const reqEl = document.createElement('div');
     reqEl.className = 'requirement';
-    const dropped = consumed[req.material_id] || 0;
-    reqEl.textContent = `Material ${req.material_id}: ${dropped}/${req.qty}`;
+    const available = inventoryById[req.material_id] || 0;
+    const labelText = req.name || `Material ${req.material_id}`;
+    reqEl.textContent = `${labelText}: ${available}/${req.qty}`;
     requirementsEl.appendChild(reqEl);
   });
 }
@@ -446,8 +500,10 @@ dropTarget.addEventListener('drop', (e) => {
 });
 
 craftBtn.addEventListener('click', async () => {
-  const recipeId = parseInt(document.getElementById('recipe').dataset.recipeId, 10);
-  setStatus('Crafting...');
+  const recipeId = selectedRecipeId || parseInt(document.getElementById('recipe').dataset.recipeId, 10);
+  const recipe = recipes.find((r) => r.id === recipeId);
+  const recipeName = recipe ? recipe.name : 'Craft';
+  setStatus(`Crafting ${recipeName}...`);
   try {
     const data = await callApi({ action: 'craft', userId: USER_ID, recipeId });
     craftTaskId = data.task_id;

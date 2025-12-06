@@ -7,7 +7,7 @@ namespace App\Model;
  */
 class DataStore
 {
-    public const DATA_VERSION = '2024-10-zones-v2';
+    public const DATA_VERSION = '2024-10-zones-v3';
 
     private array $materials = [];
     private array $recipes = [];
@@ -41,23 +41,35 @@ class DataStore
             3 => ['id' => 3, 'name' => 'Bronze Bar', 'group' => 'bar', 'tier' => 2],
             4 => ['id' => 4, 'name' => 'Lumber', 'group' => 'wood', 'tier' => 1],
             5 => ['id' => 5, 'name' => 'Wheat', 'group' => 'crop', 'tier' => 1],
+            6 => ['id' => 6, 'name' => 'Copper Ingot', 'group' => 'bar', 'tier' => 2],
+            7 => ['id' => 7, 'name' => 'Tin Ingot', 'group' => 'bar', 'tier' => 2],
         ];
 
         $this->items = [
             1 => ['id' => 1, 'name' => 'Copper Pickaxe', 'type' => 'tool', 'stats' => ['speed' => 1.1], 'durability' => 15],
             2 => ['id' => 2, 'name' => 'Bronze Pickaxe', 'type' => 'tool', 'stats' => ['speed' => 1.3], 'durability' => 25],
             3 => ['id' => 3, 'name' => 'Bronze Ingot', 'type' => 'material', 'stats' => []],
+            6 => ['id' => 6, 'name' => 'Copper Ingot', 'type' => 'material', 'stats' => []],
+            7 => ['id' => 7, 'name' => 'Tin Ingot', 'type' => 'material', 'stats' => []],
             1000 => ['id' => 1000, 'name' => 'Starter Pickaxe', 'type' => 'tool', 'stats' => ['speed' => 1.0], 'durability' => 10],
         ];
 
         $this->recipes = [
-            1 => ['id' => 1, 'output_item_id' => 3, 'time_ms' => 5000],
+            1 => ['id' => 1, 'output_item_id' => 3, 'time_ms' => 5000, 'xp_reward' => 50],
+            2 => ['id' => 2, 'output_item_id' => 6, 'time_ms' => 4000, 'xp_reward' => 35],
+            3 => ['id' => 3, 'output_item_id' => 7, 'time_ms' => 4000, 'xp_reward' => 35],
         ];
 
         $this->recipeInputs = [
             1 => [
                 ['recipe_id' => 1, 'material_id' => 1, 'qty' => 2],
                 ['recipe_id' => 1, 'material_id' => 2, 'qty' => 1],
+            ],
+            2 => [
+                ['recipe_id' => 2, 'material_id' => 1, 'qty' => 10],
+            ],
+            3 => [
+                ['recipe_id' => 3, 'material_id' => 2, 'qty' => 10],
             ],
         ];
 
@@ -103,8 +115,8 @@ class DataStore
                 ['profession_id' => 1, 'level' => 3, 'xp_required' => 250, 'modifiers' => ['speed_multiplier' => 0.8]],
             ],
             2 => [ // Smithing levels
-                ['profession_id' => 2, 'level' => 1, 'xp_required' => 0, 'modifiers' => ['speed_multiplier' => 1.0]],
-                ['profession_id' => 2, 'level' => 2, 'xp_required' => 150, 'modifiers' => ['speed_multiplier' => 0.9]],
+                ['profession_id' => 2, 'level' => 1, 'xp_required' => 0, 'modifiers' => ['speed_multiplier' => 1.0, 'cost_multiplier' => 1.0]],
+                ['profession_id' => 2, 'level' => 2, 'xp_required' => 150, 'modifiers' => ['speed_multiplier' => 0.9, 'cost_multiplier' => 0.9]],
             ],
         ];
 
@@ -118,9 +130,11 @@ class DataStore
 
         $this->inventories = [
             1 => [
-                1 => 10, // copper ore
-                2 => 5,  // tin ore
+                1 => 20, // copper ore
+                2 => 15, // tin ore
                 3 => 0,
+                6 => 0,
+                7 => 0,
                 1_000 => 1, // copper pickaxe item id 1
             ],
         ];
@@ -160,6 +174,33 @@ class DataStore
     public function getRecipe(int $id): ?array
     {
         return $this->recipes[$id] ?? null;
+    }
+
+    public function getRecipes(): array
+    {
+        return array_values($this->recipes);
+    }
+
+    public function getRecipeRequirementsForUser(int $userId, int $recipeId): array
+    {
+        $inputs = $this->getRecipeInputs($recipeId);
+        $user = $this->getUser($userId);
+        if (!$user) {
+            return $inputs;
+        }
+
+        $levels = $this->getProfessionLevels(2); // Smithing
+        $prof = $user['professions'][2] ?? ['xp' => 0, 'level' => 1];
+        $levelInfo = ProfessionHelper::getLevelForXp($levels, $prof['xp']);
+        $costMultiplier = $levelInfo['modifiers']['cost_multiplier'] ?? 1.0;
+
+        $scaled = [];
+        foreach ($inputs as $input) {
+            $scaledQty = (int)max(1, ceil($input['qty'] * $costMultiplier));
+            $scaled[] = $input + ['qty' => $scaledQty, 'name' => $this->materials[$input['material_id']]['name'] ?? ('Material ' . $input['material_id'])];
+        }
+
+        return $scaled;
     }
 
     public function getRecipeInputs(int $recipeId): array

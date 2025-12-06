@@ -24,7 +24,7 @@ class CraftingService
             throw new RuntimeException('Recipe not found');
         }
 
-        $inputs = $this->dataStore->getRecipeInputs($recipeId);
+        $inputs = $this->dataStore->getRecipeRequirementsForUser($userId, $recipeId);
         foreach ($inputs as $input) {
             $available = $this->dataStore->getInventoryQty($userId, $input['material_id']);
             if ($available < $input['qty']) {
@@ -87,7 +87,8 @@ class CraftingService
         $task['completed'] = true;
         $this->dataStore->updateTask($taskId, $task);
 
-        $rewardXp = 50;
+        $recipe = $this->dataStore->getRecipe($task['recipe_id']) ?? [];
+        $rewardXp = $recipe['xp_reward'] ?? 50;
         $this->addXp($task['user_id'], 2, $rewardXp); // Smithing
 
         return [

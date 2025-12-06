@@ -47,7 +47,13 @@
     <div class="crafting-panel">
       <div class="inventory" id="inventory"></div>
       <div class="recipe" id="recipe" data-recipe-id="1">
-        <h3>Bronze Ingot</h3>
+        <div class="recipe-header">
+          <h3 id="recipe-name">Bronze Ingot</h3>
+          <label>
+            Vyber recept:
+            <select id="recipe-select"></select>
+          </label>
+        </div>
         <div class="requirements" id="requirements"></div>
         <div class="drop-target" id="drop-target">Drag materials here</div>
         <button id="craft-btn">Craft</button>

@@ -17,6 +17,8 @@ Kdykoli můžete použít i tlačítko **Factory reset** (vedle výběru mapy), 
 
 HUD zobrazuje postup v profesích (Mining a Smithing) včetně XP progress baru a aktuálního levelu; XP získáte za každý dokončený harvest i craft.
 
+Crafting panel obsahuje výběr receptů – kromě bronzu lze tavit měděné a cínové ingoty. Základní poměr je 10× rudný materiál = 1 ingot a se zvyšující se úrovní Smithingu se požadované množství automaticky snižuje (v požadavcích receptu uvidíte už upravené hodnoty).
+
 ## Spuštění na XAMPP/Apache
 
 1. Zkopírujte repozitář do `htdocs` (např. `htdocs/Prvn-test`).

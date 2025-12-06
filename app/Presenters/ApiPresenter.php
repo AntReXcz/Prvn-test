@@ -29,6 +29,7 @@ class ApiPresenter
                 'repairTool' => $this->json($this->miningService->repairTool((int)$request['userId'], (int)$request['toolId'], (int)$request['materialId'], (int)$request['materialQty'])),
                 'craft' => $this->json($this->craftingService->craft((int)$request['userId'], (int)$request['recipeId'])),
                 'finishCraft' => $this->json($this->craftingService->finishCrafting((int)$request['taskId'])),
+                'listRecipes' => $this->json(['recipes' => $this->getRecipes((int)$request['userId'])]),
                 'zoneStatus' => $this->json(['nodes' => $this->dataStore->getZoneNodesWithState((int)$request['zoneId'])]),
                 'listZones' => $this->json(['zones' => $this->dataStore->getZones()]),
                 'resetSession' => $this->json($this->resetSession()),
@@ -37,6 +38,7 @@ class ApiPresenter
                     'inventory' => $this->getInventory((int)$request['userId']),
                     'tools' => $this->getTools((int)$request['userId']),
                     'professions' => $this->dataStore->getProfessionProgress((int)$request['userId']),
+                    'recipes' => $this->getRecipes((int)$request['userId']),
                 ]),
                 default => $this->json(['error' => 'Unknown action'], 400),
             };
@@ -93,5 +95,23 @@ class ApiPresenter
             'version' => $this->dataStore->getVersion(),
             'zones' => $this->dataStore->getZones(),
         ];
+    }
+
+    private function getRecipes(int $userId): array
+    {
+        $recipes = [];
+        foreach ($this->dataStore->getRecipes() as $recipe) {
+            $outputItem = $this->dataStore->getItem($recipe['output_item_id']);
+            $recipes[] = [
+                'id' => $recipe['id'],
+                'output_item_id' => $recipe['output_item_id'],
+                'name' => $outputItem['name'] ?? ('Recipe ' . $recipe['id']),
+                'time_ms' => $recipe['time_ms'],
+                'xp_reward' => $recipe['xp_reward'] ?? null,
+                'requirements' => $this->dataStore->getRecipeRequirementsForUser($userId, $recipe['id']),
+            ];
+        }
+
+        return $recipes;
     }
 }
