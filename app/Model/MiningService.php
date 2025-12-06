@@ -63,7 +63,7 @@ class MiningService
         $baseDuration = $node['cooldown_ms'];
         $adjustedDuration = (int)($baseDuration * $speedMultiplier / $toolSpeed);
 
-        $finishAt = $now->add(new DateInterval('PT' . max(1, (int)ceil($adjustedDuration / 1000)) . 'S'));
+        $finishAt = $now->modify('+' . max(1, $adjustedDuration) . ' milliseconds');
 
         if (!$this->dataStore->reserveNode($zoneId, $nodeId, $finishAt)) {
             throw new RuntimeException('Node could not be reserved');
