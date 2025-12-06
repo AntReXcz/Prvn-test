@@ -4,6 +4,7 @@ const TOOL_ID = 1000;
 const MINING_RADIUS = 70;
 const MAX_SIMULTANEOUS_NODES = 10;
 const NODE_SIZE = 26;
+const DEFAULT_BOUNDS = { minX: 0, minY: 0, width: 640, height: 420 };
 
 const minimap = document.getElementById('minimap');
 const zoneSelect = document.getElementById('zone-select');
@@ -35,6 +36,7 @@ let pendingStarts = new Set();
 let aoeIndicator = null;
 let craftTaskId = null;
 let currentZoneId = null;
+let zoneBounds = { ...DEFAULT_BOUNDS };
 
 init();
 
@@ -45,6 +47,10 @@ async function init() {
   zoneSelect.addEventListener('change', handleZoneChange);
   resetBtn.addEventListener('click', resetSession);
   recipeSelect.addEventListener('change', handleRecipeChange);
+  window.addEventListener('resize', () => {
+    positionNodes();
+    syncAoeIndicator();
+  });
 
   setStatus('Načítám mapy...');
   await Promise.all([loadZones(), refreshInventory()]);
@@ -121,7 +127,11 @@ async function loadZone() {
   try {
     const data = await callApi({ action: 'zoneStatus', zoneId: currentZoneId });
     nodes = data.nodes || [];
+    zoneBounds = computeZoneBounds(nodes);
+    applyMinimapAspect();
     renderNodes();
+    positionNodes();
+    syncAoeIndicator();
     const zoneMeta = zones.find((z) => z.id === currentZoneId);
     if (zoneMeta && zoneMeta.biome) {
       minimap.dataset.biome = zoneMeta.biome;
@@ -144,7 +154,10 @@ async function handleZoneChange(event) {
   cancelAllActiveTasks('Přesun na jinou mapu.');
   resetProgress();
   nodes = [];
+  zoneBounds = { ...DEFAULT_BOUNDS };
+  applyMinimapAspect();
   renderNodes();
+  positionNodes();
   currentZoneId = nextZoneId;
   await loadZone();
 }
@@ -168,8 +181,6 @@ function renderNodes() {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-');
     el.className = `node state-${node.state} material-${materialSlug}`;
-    el.style.left = `${node.x}px`;
-    el.style.top = `${node.y}px`;
     el.title = `${node.material_name} (${node.state})`;
     if (node.state !== 'available') {
       el.classList.add('disabled');
@@ -179,23 +190,125 @@ function renderNodes() {
   });
 
   setupAoeIndicator();
+  positionNodes();
+}
+
+function computeZoneBounds(nodeList) {
+  if (!nodeList.length) {
+    return { ...DEFAULT_BOUNDS };
+  }
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  nodeList.forEach((node) => {
+    minX = Math.min(minX, node.x);
+    maxX = Math.max(maxX, node.x + NODE_SIZE);
+    minY = Math.min(minY, node.y);
+    maxY = Math.max(maxY, node.y + NODE_SIZE);
+  });
+
+  const padding = 30;
+  return {
+    minX: minX - padding,
+    minY: minY - padding,
+    width: Math.max(1, maxX - minX) + padding * 2,
+    height: Math.max(1, maxY - minY) + padding * 2,
+  };
+}
+
+function applyMinimapAspect() {
+  minimap.style.aspectRatio = `${Math.max(1, zoneBounds.width)} / ${Math.max(1, zoneBounds.height)}`;
+}
+
+function getRenderMetrics() {
+  const rect = minimap.getBoundingClientRect();
+  const width = Math.max(1, zoneBounds.width);
+  const height = Math.max(1, zoneBounds.height);
+  const scale = Math.min(rect.width / width, rect.height / height);
+  const offsetX = (rect.width - width * scale) / 2 - zoneBounds.minX * scale;
+  const offsetY = (rect.height - height * scale) / 2 - zoneBounds.minY * scale;
+  return { scale, offsetX, offsetY };
+}
+
+function worldToScreen(x, y, metrics) {
+  return {
+    x: x * metrics.scale + metrics.offsetX,
+    y: y * metrics.scale + metrics.offsetY,
+  };
+}
+
+function screenToWorld(x, y, metrics) {
+  return {
+    x: (x - metrics.offsetX) / metrics.scale,
+    y: (y - metrics.offsetY) / metrics.scale,
+  };
+}
+
+function positionNodes() {
+  if (!nodeElements.size) {
+    return;
+  }
+  const metrics = getRenderMetrics();
+  const scaledSize = Math.max(18, NODE_SIZE * metrics.scale);
+  nodeElements.forEach((el, nodeId) => {
+    const node = nodes.find((n) => n.node_id === nodeId);
+    if (!node) {
+      return;
+    }
+    const screen = worldToScreen(node.x, node.y, metrics);
+    el.style.left = `${screen.x}px`;
+    el.style.top = `${screen.y}px`;
+    el.style.width = `${scaledSize}px`;
+    el.style.height = `${scaledSize}px`;
+  });
+  syncAoeIndicator(metrics);
+}
+
+function updateAoeIndicator(metrics, screenX, screenY) {
+  if (!aoeIndicator) {
+    return;
+  }
+  const diameter = MINING_RADIUS * 2 * metrics.scale;
+  aoeIndicator.style.display = 'block';
+  aoeIndicator.style.width = `${diameter}px`;
+  aoeIndicator.style.height = `${diameter}px`;
+  aoeIndicator.style.left = `${screenX}px`;
+  aoeIndicator.style.top = `${screenY}px`;
+}
+
+function syncAoeIndicator(metrics = null) {
+  if (!lastHoverPosition || !aoeIndicator) {
+    return;
+  }
+  const renderMetrics = metrics || getRenderMetrics();
+  const screen = worldToScreen(lastHoverPosition.x, lastHoverPosition.y, renderMetrics);
+  updateAoeIndicator(renderMetrics, screen.x, screen.y);
+}
+
+function getNodeCenter(node) {
+  return {
+    x: node.x + NODE_SIZE / 2,
+    y: node.y + NODE_SIZE / 2,
+  };
 }
 
 function handleMinimapMove(event) {
   const rect = minimap.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  lastHoverPosition = { x, y };
+  const screenX = event.clientX - rect.left;
+  const screenY = event.clientY - rect.top;
+  const metrics = getRenderMetrics();
+  const worldPos = screenToWorld(screenX, screenY, metrics);
+  lastHoverPosition = { x: worldPos.x, y: worldPos.y };
 
-  aoeIndicator.style.display = 'block';
-  aoeIndicator.style.left = `${x}px`;
-  aoeIndicator.style.top = `${y}px`;
+  updateAoeIndicator(metrics, screenX, screenY);
 
   const inRangeNodes = [];
   nodes.forEach((node) => {
-    const centerX = node.x + NODE_SIZE / 2;
-    const centerY = node.y + NODE_SIZE / 2;
-    const distance = Math.hypot(centerX - x, centerY - y);
+    const center = getNodeCenter(node);
+    const distance = Math.hypot(center.x - worldPos.x, center.y - worldPos.y);
     const inside = distance <= MINING_RADIUS;
     const el = nodeElements.get(node.node_id);
     if (el) {
@@ -283,9 +396,8 @@ function isNodeStillInRange(node) {
   if (!lastHoverPosition) {
     return false;
   }
-  const centerX = node.x + NODE_SIZE / 2;
-  const centerY = node.y + NODE_SIZE / 2;
-  const distance = Math.hypot(centerX - lastHoverPosition.x, centerY - lastHoverPosition.y);
+  const center = getNodeCenter(node);
+  const distance = Math.hypot(center.x - lastHoverPosition.x, center.y - lastHoverPosition.y);
   return distance <= MINING_RADIUS;
 }
 
