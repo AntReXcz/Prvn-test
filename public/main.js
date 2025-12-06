@@ -17,6 +17,8 @@ const repairBtn = document.getElementById('repair-btn');
 let nodes = [];
 let currentTask = null;
 let consumed = {};
+let progressRaf = null;
+let hoveredNodeId = null;
 
 init();
 
@@ -47,12 +49,19 @@ function renderNodes() {
     if (node.state !== 'available') {
       el.classList.add('disabled');
     }
-    el.addEventListener('mouseenter', () => startMining(node));
+    el.addEventListener('mouseenter', () => {
+      hoveredNodeId = node.node_id;
+      startMining(node, el);
+    });
+    el.addEventListener('mouseleave', () => {
+      hoveredNodeId = null;
+      cancelActiveTask('Těžba přerušena (kurzor mimo rudu).', node.node_id);
+    });
     minimap.appendChild(el);
   });
 }
 
-async function startMining(node) {
+async function startMining(node, el) {
   if (currentTask) {
     setStatus('Already working on a task.');
     return;
@@ -72,8 +81,18 @@ async function startMining(node) {
       nodeId: node.node_id,
       toolId: TOOL_ID,
     });
-    currentTask = data.task_id;
-    runProgress(data.eta_ms, () => finishMining(currentTask));
+    if (hoveredNodeId !== node.node_id) {
+      await callApi({ action: 'cancelTask', taskId: data.task_id });
+      resetProgress();
+      return;
+    }
+    currentTask = {
+      id: data.task_id,
+      nodeId: node.node_id,
+      cancelled: false,
+    };
+    el.dataset.activeNode = '1';
+    runProgress(data.eta_ms, () => finishMining(currentTask.id), currentTask);
   } catch (err) {
     setStatus(err.message);
     await loadZone();
@@ -81,6 +100,10 @@ async function startMining(node) {
 }
 
 async function finishMining(taskId) {
+  const taskSnapshot = currentTask;
+  currentTask = null;
+  resetProgress();
+
   try {
     const data = await callApi({ action: 'finishMining', taskId });
     const gained = data.items_gained?.[0];
@@ -91,25 +114,54 @@ async function finishMining(taskId) {
     await Promise.all([refreshInventory(), loadZone()]);
   } catch (err) {
     setStatus(err.message);
-  } finally {
-    currentTask = null;
+    if (taskSnapshot?.nodeId) {
+      await loadZone();
+    }
   }
 }
 
-function runProgress(duration, callback) {
+function runProgress(duration, callback, taskRef) {
   const start = Date.now();
   const tick = () => {
+    if (taskRef?.cancelled) {
+      resetProgress();
+      return;
+    }
     const elapsed = Date.now() - start;
     const pct = Math.min(1, elapsed / duration);
     bar.style.width = `${pct * 100}%`;
     setStatus(`Progress ${(pct * 100).toFixed(0)}%`);
     if (pct < 1) {
-      requestAnimationFrame(tick);
+      progressRaf = requestAnimationFrame(tick);
     } else {
       callback();
     }
   };
   tick();
+}
+
+async function cancelActiveTask(reason, nodeId) {
+  if (!currentTask) {
+    return;
+  }
+
+  const taskId = currentTask.id;
+  currentTask.cancelled = true;
+  currentTask = null;
+  resetProgress();
+  setStatus(reason);
+
+  if (taskId) {
+    try {
+      await callApi({ action: 'cancelTask', taskId });
+    } catch (err) {
+      console.warn('Failed to cancel task', err);
+    }
+  }
+
+  if (nodeId) {
+    await loadZone();
+  }
 }
 
 async function refreshInventory() {
@@ -236,6 +288,14 @@ repairBtn.addEventListener('click', async () => {
 
 function setStatus(text) {
   label.textContent = text;
+}
+
+function resetProgress() {
+  if (progressRaf) {
+    cancelAnimationFrame(progressRaf);
+    progressRaf = null;
+  }
+  bar.style.width = '0%';
 }
 
 async function callApi(params) {

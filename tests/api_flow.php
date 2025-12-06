@@ -14,6 +14,16 @@ $presenter = new ApiPresenter(new DataStore());
 $startResponse = json_decode($presenter->handle(['action' => 'startMining', 'userId' => 1, 'zoneId' => 1, 'nodeId' => 101, 'toolId' => 1000]), true);
 $taskId = $startResponse['task_id'];
 
+$cancelResponse = json_decode($presenter->handle(['action' => 'startMining', 'userId' => 1, 'zoneId' => 1, 'nodeId' => 102, 'toolId' => 1000]), true);
+$cancelled = json_decode($presenter->handle(['action' => 'cancelTask', 'taskId' => $cancelResponse['task_id']]), true);
+if (($cancelled['status'] ?? '') !== 'cancelled') {
+    throw new RuntimeException('Cancel task should return cancelled status');
+}
+$nodeStatusAfterCancel = json_decode($presenter->handle(['action' => 'zoneStatus', 'zoneId' => 1]), true);
+if (($nodeStatusAfterCancel['nodes'][1]['state'] ?? '') !== 'available') {
+    throw new RuntimeException('Node should be available after cancel');
+}
+
 $zoneStatus = json_decode($presenter->handle(['action' => 'zoneStatus', 'zoneId' => 1]), true);
 if (($zoneStatus['nodes'][0]['state'] ?? '') !== 'reserved') {
     throw new RuntimeException('Zone status should reflect reservation');

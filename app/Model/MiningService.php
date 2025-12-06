@@ -134,6 +134,24 @@ class MiningService
         ];
     }
 
+    public function cancelMining(int $taskId): array
+    {
+        $task = $this->dataStore->getTask($taskId);
+        if (!$task || $task['type'] !== 'mining') {
+            throw new RuntimeException('Task not found');
+        }
+
+        if ($task['completed']) {
+            return ['status' => 'already_completed'];
+        }
+
+        $this->dataStore->releaseNode($task['zone_id'], $task['node_id']);
+        $task['completed'] = true;
+        $this->dataStore->updateTask($taskId, $task);
+
+        return ['status' => 'cancelled'];
+    }
+
     public function repairTool(int $userId, int $toolId, int $materialId, int $materialQty): array
     {
         $tool = $this->dataStore->getItem($toolId);

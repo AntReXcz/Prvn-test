@@ -25,6 +25,12 @@ assertTrue(isset($start['task_id']), 'Task id returned for mining');
 
 $taskId = $start['task_id'];
 
+$cancelStart = $mining->startMining(1, 1, 102, 1000);
+assertTrue(isset($cancelStart['task_id']), 'Task id returned for cancellable mining');
+assertTrue($mining->cancelMining($cancelStart['task_id'])['status'] === 'cancelled', 'Mining task can be cancelled');
+$stateAfterCancel = $store->getNodeState(1, 102);
+assertTrue($stateAfterCancel['state'] === 'available', 'Node released after cancel');
+
 try {
     $mining->startMining(1, 1, 101, 1000);
     assertTrue(false, 'Reservation should block concurrent mining');
