@@ -53,8 +53,8 @@ class DataStore
 
         $this->zones = [
             1 => ['id' => 1, 'name' => 'Copper Hills', 'biome' => 'mountain', 'spawn_table' => [
-                ['node_id' => 101, 'material_id' => 1, 'qty' => 3, 'cooldown_ms' => 3000, 'respawn_ms' => 4000],
-                ['node_id' => 102, 'material_id' => 2, 'qty' => 2, 'cooldown_ms' => 5000, 'respawn_ms' => 6000],
+                ['node_id' => 101, 'material_id' => 1, 'qty' => 3, 'cooldown_ms' => 3000, 'respawn_ms' => 4000, 'x' => 30, 'y' => 40],
+                ['node_id' => 102, 'material_id' => 2, 'qty' => 2, 'cooldown_ms' => 5000, 'respawn_ms' => 6000, 'x' => 120, 'y' => 80],
             ]],
         ];
 
@@ -122,6 +122,11 @@ class DataStore
     public function getRecipeInputs(int $recipeId): array
     {
         return $this->recipeInputs[$recipeId] ?? [];
+    }
+
+    public function getInventory(int $userId): array
+    {
+        return $this->inventories[$userId] ?? [];
     }
 
     public function getZone(int $id): ?array
@@ -250,9 +255,12 @@ class DataStore
             $result[] = [
                 'node_id' => $entry['node_id'],
                 'material_id' => $entry['material_id'],
+                'material_name' => $this->materials[$entry['material_id']]['name'] ?? 'Material ' . $entry['material_id'],
                 'qty' => $entry['qty'],
                 'cooldown_ms' => $entry['cooldown_ms'],
                 'respawn_ms' => $entry['respawn_ms'] ?? $entry['cooldown_ms'],
+                'x' => $entry['x'] ?? 0,
+                'y' => $entry['y'] ?? 0,
                 'state' => $state['state'],
                 'reserved_until' => $this->formatDate($state['reserved_until']),
                 'respawn_at' => $this->formatDate($state['respawn_at']),

@@ -1,7 +1,7 @@
-const nodes = [
-  { id: 101, x: 30, y: 40, label: 'Copper Ore' },
-  { id: 102, x: 120, y: 80, label: 'Tin Ore' },
-];
+const API_BASE = 'api.php';
+const USER_ID = 1;
+const ZONE_ID = 1;
+const TOOL_ID = 1000;
 
 const minimap = document.getElementById('minimap');
 const bar = document.getElementById('progress-bar');
@@ -10,41 +10,82 @@ const inventoryEl = document.getElementById('inventory');
 const requirementsEl = document.getElementById('requirements');
 const dropTarget = document.getElementById('drop-target');
 const craftBtn = document.getElementById('craft-btn');
+const toolStatus = document.getElementById('tool-status');
+const repairBtn = document.getElementById('repair-btn');
 
+let nodes = [];
 let currentTask = null;
 let consumed = {};
 
-nodes.forEach((node) => {
-  const el = document.createElement('div');
-  el.className = 'node';
-  el.style.left = `${node.x}px`;
-  el.style.top = `${node.y}px`;
-  el.title = node.label;
-  el.addEventListener('click', () => startMining(node));
-  minimap.appendChild(el);
-});
+init();
 
-function startMining(node) {
-  label.textContent = 'Starting mining...';
-  fetch(`../app/Presenters/ApiPresenter.php?action=startMining&userId=1&zoneId=1&nodeId=${node.id}&toolId=1000`)
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.error) throw new Error(data.error);
-      currentTask = data.task_id;
-      runProgress(data.eta_ms, () => finishMining(currentTask));
-    })
-    .catch((err) => (label.textContent = err.message));
+async function init() {
+  setStatus('Loading zone...');
+  await Promise.all([loadZone(), refreshInventory()]);
+  setStatus('Idle');
 }
 
-function finishMining(taskId) {
-  fetch(`../app/Presenters/ApiPresenter.php?action=finishMining&taskId=${taskId}`)
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.error) throw new Error(data.error);
-      label.textContent = `Gained ${data.items_gained[0].qty} ore`;
-      refreshInventory();
-    })
-    .catch((err) => (label.textContent = err.message));
+async function loadZone() {
+  try {
+    const data = await callApi({ action: 'zoneStatus', zoneId: ZONE_ID });
+    nodes = data.nodes || [];
+    renderNodes();
+  } catch (err) {
+    setStatus(err.message);
+  }
+}
+
+function renderNodes() {
+  minimap.innerHTML = '';
+  nodes.forEach((node) => {
+    const el = document.createElement('div');
+    el.className = `node state-${node.state}`;
+    el.style.left = `${node.x}px`;
+    el.style.top = `${node.y}px`;
+    el.title = `${node.material_name} (${node.state})`;
+    if (node.state !== 'available') {
+      el.classList.add('disabled');
+    }
+    el.addEventListener('click', () => startMining(node));
+    minimap.appendChild(el);
+  });
+}
+
+async function startMining(node) {
+  if (node.state !== 'available') {
+    setStatus('Node is not available yet.');
+    return;
+  }
+
+  setStatus('Starting mining...');
+  try {
+    const data = await callApi({
+      action: 'startMining',
+      userId: USER_ID,
+      zoneId: ZONE_ID,
+      nodeId: node.node_id,
+      toolId: TOOL_ID,
+    });
+    currentTask = data.task_id;
+    runProgress(data.eta_ms, () => finishMining(currentTask));
+  } catch (err) {
+    setStatus(err.message);
+    await loadZone();
+  }
+}
+
+async function finishMining(taskId) {
+  try {
+    const data = await callApi({ action: 'finishMining', taskId });
+    const gained = data.items_gained?.[0];
+    const name = nodes.find((n) => n.material_id === gained?.material_id)?.material_name || 'material';
+    setStatus(
+      `Gained ${gained?.qty ?? 0} ${name} (tool durability ${data.tool_durability}/${toolStatus.dataset.maxDurability || '?'})`
+    );
+    await Promise.all([refreshInventory(), loadZone()]);
+  } catch (err) {
+    setStatus(err.message);
+  }
 }
 
 function runProgress(duration, callback) {
@@ -53,7 +94,7 @@ function runProgress(duration, callback) {
     const elapsed = Date.now() - start;
     const pct = Math.min(1, elapsed / duration);
     bar.style.width = `${pct * 100}%`;
-    label.textContent = `Progress ${(pct * 100).toFixed(0)}%`;
+    setStatus(`Progress ${(pct * 100).toFixed(0)}%`);
     if (pct < 1) {
       requestAnimationFrame(tick);
     } else {
@@ -63,36 +104,56 @@ function runProgress(duration, callback) {
   tick();
 }
 
-function refreshInventory() {
-  fetch('../app/Presenters/ApiPresenter.php?action=status&userId=1')
-    .then((r) => r.json())
-    .then((data) => {
-      inventoryEl.innerHTML = '';
-      data.inventory.forEach((slot) => {
-        const item = document.createElement('div');
-        item.className = 'inventory-item';
-        item.textContent = `${slot.material_id}: ${slot.qty}`;
-        item.draggable = true;
-        item.dataset.materialId = slot.material_id;
-        item.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', slot.material_id));
-        inventoryEl.appendChild(item);
-      });
-      requirementsEl.innerHTML = '';
-      const recipeReqs = [
-        { material_id: 1, qty: 2 },
-        { material_id: 2, qty: 1 },
-      ];
-      recipeReqs.forEach((req) => {
-        const reqEl = document.createElement('div');
-        reqEl.className = 'requirement';
-        const dropped = consumed[req.material_id] || 0;
-        reqEl.textContent = `Material ${req.material_id}: ${dropped}/${req.qty}`;
-        requirementsEl.appendChild(reqEl);
-      });
-    });
+async function refreshInventory() {
+  const data = await callApi({ action: 'status', userId: USER_ID });
+  renderInventory(data.inventory || []);
+  renderRequirements();
+  renderTools(data.tools || []);
 }
 
-refreshInventory();
+function renderInventory(slots) {
+  inventoryEl.innerHTML = '';
+  slots.forEach((slot) => {
+    const item = document.createElement('div');
+    item.className = 'inventory-item';
+    const label = slot.name ? `${slot.name}` : `Material ${slot.material_id}`;
+    item.textContent = `${label}: ${slot.qty}`;
+    item.draggable = true;
+    item.dataset.materialId = slot.material_id;
+    item.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', slot.material_id));
+    inventoryEl.appendChild(item);
+  });
+}
+
+function renderRequirements() {
+  requirementsEl.innerHTML = '';
+  const recipeReqs = [
+    { material_id: 1, qty: 2 },
+    { material_id: 2, qty: 1 },
+  ];
+  recipeReqs.forEach((req) => {
+    const reqEl = document.createElement('div');
+    reqEl.className = 'requirement';
+    const dropped = consumed[req.material_id] || 0;
+    reqEl.textContent = `Material ${req.material_id}: ${dropped}/${req.qty}`;
+    requirementsEl.appendChild(reqEl);
+  });
+}
+
+function renderTools(tools) {
+  toolStatus.innerHTML = '';
+  tools.forEach((tool) => {
+    toolStatus.dataset.maxDurability = tool.max_durability;
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    const percent = Math.round((tool.durability / tool.max_durability) * 100);
+    card.innerHTML = `
+      <strong>${tool.name} (x${tool.qty})</strong>
+      <div>Durability: ${tool.durability}/${tool.max_durability} (${percent}%)</div>
+    `;
+    toolStatus.appendChild(card);
+  });
+}
 
 dropTarget.addEventListener('dragover', (e) => {
   e.preventDefault();
@@ -105,25 +166,55 @@ dropTarget.addEventListener('drop', (e) => {
   refreshInventory();
 });
 
-craftBtn.addEventListener('click', () => {
+craftBtn.addEventListener('click', async () => {
   const recipeId = parseInt(document.getElementById('recipe').dataset.recipeId, 10);
-  fetch(`../app/Presenters/ApiPresenter.php?action=craft&userId=1&recipeId=${recipeId}`)
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.error) throw new Error(data.error);
-      currentTask = data.task_id;
-      runProgress(data.eta_ms, () => finishCraft(currentTask));
-    })
-    .catch((err) => (label.textContent = err.message));
+  setStatus('Crafting...');
+  try {
+    const data = await callApi({ action: 'craft', userId: USER_ID, recipeId });
+    currentTask = data.task_id;
+    runProgress(data.eta_ms, () => finishCraft(currentTask));
+  } catch (err) {
+    setStatus(err.message);
+  }
 });
 
-function finishCraft(taskId) {
-  fetch(`../app/Presenters/ApiPresenter.php?action=finishCraft&taskId=${taskId}`)
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.error) throw new Error(data.error);
-      label.textContent = `Crafted item ${data.items_gained[0].item_id}`;
-      refreshInventory();
-    })
-    .catch((err) => (label.textContent = err.message));
+async function finishCraft(taskId) {
+  try {
+    const data = await callApi({ action: 'finishCraft', taskId });
+    setStatus(`Crafted item ${data.items_gained?.[0]?.item_id}`);
+    await refreshInventory();
+  } catch (err) {
+    setStatus(err.message);
+  }
+}
+
+repairBtn.addEventListener('click', async () => {
+  setStatus('Repairing tool...');
+  try {
+    const data = await callApi({
+      action: 'repairTool',
+      userId: USER_ID,
+      toolId: TOOL_ID,
+      materialId: 1,
+      materialQty: 2,
+    });
+    setStatus(`Tool repaired to ${data.durability} durability (used ${data.materials_used} ores)`);
+    await refreshInventory();
+  } catch (err) {
+    setStatus(err.message);
+  }
+});
+
+function setStatus(text) {
+  label.textContent = text;
+}
+
+async function callApi(params) {
+  const query = new URLSearchParams(params);
+  const res = await fetch(`${API_BASE}?${query.toString()}`);
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error || 'Request failed');
+  }
+  return data;
 }

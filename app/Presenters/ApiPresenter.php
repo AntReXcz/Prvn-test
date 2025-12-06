@@ -29,7 +29,11 @@ class ApiPresenter
                 'craft' => $this->json($this->craftingService->craft((int)$request['userId'], (int)$request['recipeId'])),
                 'finishCraft' => $this->json($this->craftingService->finishCrafting((int)$request['taskId'])),
                 'zoneStatus' => $this->json(['nodes' => $this->dataStore->getZoneNodesWithState((int)$request['zoneId'])]),
-                'status' => $this->json(['tasks' => $this->dataStore->getTasks(), 'inventory' => $this->getInventory((int)$request['userId'])]),
+                'status' => $this->json([
+                    'tasks' => $this->dataStore->getTasks(),
+                    'inventory' => $this->getInventory((int)$request['userId']),
+                    'tools' => $this->getTools((int)$request['userId']),
+                ]),
                 default => $this->json(['error' => 'Unknown action'], 400),
             };
         } catch (RuntimeException $e) {
@@ -49,10 +53,32 @@ class ApiPresenter
         foreach ($this->dataStore->getMaterials() as $material) {
             $materials[] = [
                 'material_id' => $material['id'],
+                'name' => $material['name'],
                 'qty' => $this->dataStore->getInventoryQty($userId, $material['id']),
             ];
         }
         return $materials;
+    }
+
+    private function getTools(int $userId): array
+    {
+        $tools = [];
+        foreach ($this->dataStore->getInventory($userId) as $itemId => $qty) {
+            $item = $this->dataStore->getItem($itemId);
+            if (!$item || $item['type'] !== 'tool') {
+                continue;
+            }
+
+            $tools[] = [
+                'item_id' => $itemId,
+                'name' => $item['name'],
+                'qty' => $qty,
+                'durability' => $this->dataStore->getToolDurability($userId, $itemId),
+                'max_durability' => $this->dataStore->getToolMaxDurability($itemId),
+            ];
+        }
+
+        return $tools;
     }
 }
 
