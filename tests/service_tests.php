@@ -1,0 +1,46 @@
+<?php
+
+require_once __DIR__ . '/../app/Model/DataStore.php';
+require_once __DIR__ . '/../app/Model/ProfessionHelper.php';
+require_once __DIR__ . '/../app/Model/MiningService.php';
+require_once __DIR__ . '/../app/Model/CraftingService.php';
+
+use App\Model\CraftingService;
+use App\Model\DataStore;
+use App\Model\MiningService;
+
+$store = new DataStore();
+$mining = new MiningService($store);
+$crafting = new CraftingService($store);
+
+function assertTrue(bool $expr, string $message)
+{
+    if (!$expr) {
+        throw new RuntimeException('Assertion failed: ' . $message);
+    }
+}
+
+$start = $mining->startMining(1, 1, 101, 1000);
+assertTrue(isset($start['task_id']), 'Task id returned for mining');
+
+$taskId = $start['task_id'];
+// fast-forward by marking finish time in the past for tests
+$task = (new ReflectionProperty($store, 'tasks'));
+$task->setAccessible(true);
+$tasks = $task->getValue($store);
+$tasks[$taskId]['finish_at'] = (new DateTimeImmutable())->sub(new DateInterval('PT1S'));
+$task->setValue($store, $tasks);
+
+$result = $mining->finishMining($taskId);
+assertTrue($result['status'] === 'completed', 'Mining completion');
+
+$craft = $crafting->craft(1, 1);
+assertTrue(isset($craft['task_id']), 'Crafting task created');
+$taskId = $craft['task_id'];
+$tasks = $task->getValue($store);
+$tasks[$taskId]['finish_at'] = (new DateTimeImmutable())->sub(new DateInterval('PT1S'));
+$task->setValue($store, $tasks);
+$crafted = $crafting->finishCrafting($taskId);
+assertTrue($crafted['status'] === 'completed', 'Crafting completion');
+
+echo "All tests passed\n";

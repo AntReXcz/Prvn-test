@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Mining & Crafting Demo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Mining & Crafting</h1>
+  <section class="hud">
+    <div class="minimap" id="minimap"></div>
+    <div class="progress" id="progress">
+      <div class="bar" id="progress-bar"></div>
+      <span id="progress-label">Idle</span>
+    </div>
+  </section>
+
+  <section class="crafting">
+    <h2>Crafting</h2>
+    <div class="crafting-panel">
+      <div class="inventory" id="inventory"></div>
+      <div class="recipe" id="recipe" data-recipe-id="1">
+        <h3>Bronze Ingot</h3>
+        <div class="requirements" id="requirements"></div>
+        <div class="drop-target" id="drop-target">Drag materials here</div>
+        <button id="craft-btn">Craft</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="main.js"></script>
+</body>
+</html>
