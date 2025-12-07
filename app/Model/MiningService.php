@@ -57,7 +57,8 @@ class MiningService
         $professionLevels = $this->dataStore->getProfessionLevels(1); // Mining
         $profession = $user['professions'][1] ?? ['xp' => 0, 'level' => 1];
         $currentLevel = ProfessionHelper::getLevelForXp($professionLevels, $profession['xp']);
-        $speedMultiplier = $currentLevel['modifiers']['speed_multiplier'] ?? 1.0;
+        $skillMods = $this->dataStore->getSkillModifiers($userId, 1);
+        $speedMultiplier = ($currentLevel['modifiers']['speed_multiplier'] ?? 1.0) * ($skillMods['speed_multiplier'] ?? 1.0);
 
         $toolSpeed = $tool['stats']['speed'] ?? 1.0;
         $baseDuration = $node['cooldown_ms'];
@@ -108,7 +109,10 @@ class MiningService
             throw new RuntimeException('Task still in progress (' . $remaining . 's remaining)');
         }
 
-        $this->dataStore->addInventoryQty($task['user_id'], $task['material_id'], $task['qty']);
+        $skillMods = $this->dataStore->getSkillModifiers($task['user_id'], 1);
+        $totalQty = $task['qty'] + ($skillMods['yield_bonus'] ?? 0);
+
+        $this->dataStore->addInventoryQty($task['user_id'], $task['material_id'], $totalQty);
         $task['completed'] = true;
         $this->dataStore->updateTask($taskId, $task);
 
@@ -116,7 +120,8 @@ class MiningService
         $respawnAt = $now->add(new DateInterval('PT' . max(1, (int)ceil($respawnMs / 1000)) . 'S'));
         $this->dataStore->markNodeDepleted($task['zone_id'], $task['node_id'], $respawnAt);
 
-        $rewardXp = 25 * $task['qty'];
+        $xpBonusMultiplier = 1 + ($skillMods['xp_bonus'] ?? 0);
+        $rewardXp = (int)ceil((25 * $task['qty']) * $xpBonusMultiplier);
         $this->addXp($task['user_id'], 1, $rewardXp); // Mining profession id 1
 
         $this->dataStore->damageTool($task['user_id'], $task['tool_id'], 1);
@@ -126,7 +131,7 @@ class MiningService
         return [
             'status' => 'completed',
             'items_gained' => [
-                ['material_id' => $task['material_id'], 'qty' => $task['qty']],
+                ['material_id' => $task['material_id'], 'qty' => $totalQty],
             ],
             'xp_gained' => $rewardXp,
             'respawn_at' => $respawnAt->format(DateTimeImmutable::ATOM),
@@ -198,10 +203,16 @@ class MiningService
 
         $levels = $this->dataStore->getProfessionLevels($professionId);
         $userProf = $user['professions'][$professionId] ?? ['xp' => 0, 'level' => 1];
+        $previousLevel = $userProf['level'] ?? 1;
         $userProf['xp'] += $xp;
         $levelInfo = ProfessionHelper::getLevelForXp($levels, $userProf['xp']);
         $userProf['level'] = $levelInfo['level'];
+        $levelsGained = max(0, $userProf['level'] - $previousLevel);
         $user['professions'][$professionId] = $userProf;
         $this->dataStore->updateUser($userId, $user);
+
+        if ($levelsGained > 0) {
+            $this->dataStore->addSkillPoints($userId, $professionId, $levelsGained);
+        }
     }
 }

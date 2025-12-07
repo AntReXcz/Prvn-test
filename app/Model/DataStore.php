@@ -7,7 +7,7 @@ namespace App\Model;
  */
 class DataStore
 {
-    public const DATA_VERSION = '2024-10-zones-v3';
+    public const DATA_VERSION = '2024-10-skill-tree';
 
     private array $materials = [];
     private array $recipes = [];
@@ -21,6 +21,10 @@ class DataStore
     private array $users = [];
     private array $nodeStates = [];
     private array $toolDurability = [];
+    private array $skills = [];
+    private array $skillTrees = [];
+    private array $skillPoints = [];
+    private array $unlockedSkills = [];
     private string $version = self::DATA_VERSION;
 
     public function __construct()
@@ -108,6 +112,68 @@ class DataStore
             2 => ['id' => 2, 'name' => 'Smithing'],
         ];
 
+        $this->skills = [
+            101 => [
+                'id' => 101,
+                'profession_id' => 1,
+                'name' => 'Rychlejší těžba I',
+                'description' => 'Zkrátí dobu těžby o 10 %',
+                'requires' => [],
+                'cost' => 1,
+                'modifiers' => ['speed_multiplier' => 0.9],
+            ],
+            102 => [
+                'id' => 102,
+                'profession_id' => 1,
+                'name' => 'Rychlejší těžba II',
+                'description' => 'Dalších 10 % rychlejší těžba',
+                'requires' => [101],
+                'cost' => 1,
+                'modifiers' => ['speed_multiplier' => 0.9],
+            ],
+            103 => [
+                'id' => 103,
+                'profession_id' => 1,
+                'name' => 'Silnější úder',
+                'description' => '+1 ruda za dokončení',
+                'requires' => [101],
+                'cost' => 1,
+                'modifiers' => ['yield_bonus' => 1],
+            ],
+            201 => [
+                'id' => 201,
+                'profession_id' => 2,
+                'name' => 'Úsporné taveni',
+                'description' => '-10 % nákladů na ore',
+                'requires' => [],
+                'cost' => 1,
+                'modifiers' => ['cost_multiplier' => 0.9],
+            ],
+            202 => [
+                'id' => 202,
+                'profession_id' => 2,
+                'name' => 'Rychlá pec',
+                'description' => '-10 % času craftu',
+                'requires' => [201],
+                'cost' => 1,
+                'modifiers' => ['speed_multiplier' => 0.9],
+            ],
+            203 => [
+                'id' => 203,
+                'profession_id' => 2,
+                'name' => 'Bonusové XP',
+                'description' => '+10 % XP z craftu',
+                'requires' => [201],
+                'cost' => 1,
+                'modifiers' => ['xp_bonus' => 0.1],
+            ],
+        ];
+
+        $this->skillTrees = [
+            1 => [101, 102, 103],
+            2 => [201, 202, 203],
+        ];
+
         $this->professionLevels = [
             1 => [ // Mining levels
                 ['profession_id' => 1, 'level' => 1, 'xp_required' => 0, 'modifiers' => ['speed_multiplier' => 1.0]],
@@ -126,6 +192,17 @@ class DataStore
                 1 => ['xp' => 0, 'level' => 1],
                 2 => ['xp' => 0, 'level' => 1],
             ]],
+        ];
+
+        $this->skillPoints = [
+            1 => [
+                1 => 1,
+                2 => 1,
+            ],
+        ];
+
+        $this->unlockedSkills = [
+            1 => [],
         ];
 
         $this->inventories = [
@@ -161,6 +238,21 @@ class DataStore
         return $this->professions;
     }
 
+    public function getSkillTrees(): array
+    {
+        $trees = [];
+        foreach ($this->skillTrees as $professionId => $skillIds) {
+            $trees[$professionId] = array_values(array_filter(array_map(fn (int $id) => $this->getSkill($id), $skillIds)));
+        }
+
+        return $trees;
+    }
+
+    public function getSkill(int $skillId): ?array
+    {
+        return $this->skills[$skillId] ?? null;
+    }
+
     public function getMaterials(): array
     {
         return $this->materials;
@@ -192,12 +284,13 @@ class DataStore
         $levels = $this->getProfessionLevels(2); // Smithing
         $prof = $user['professions'][2] ?? ['xp' => 0, 'level' => 1];
         $levelInfo = ProfessionHelper::getLevelForXp($levels, $prof['xp']);
-        $costMultiplier = $levelInfo['modifiers']['cost_multiplier'] ?? 1.0;
+        $skillMods = $this->getSkillModifiers($userId, 2);
+        $costMultiplier = ($levelInfo['modifiers']['cost_multiplier'] ?? 1.0) * ($skillMods['cost_multiplier'] ?? 1.0);
 
         $scaled = [];
         foreach ($inputs as $input) {
             $scaledQty = (int)max(1, ceil($input['qty'] * $costMultiplier));
-            $scaled[] = $input + ['qty' => $scaledQty, 'name' => $this->materials[$input['material_id']]['name'] ?? ('Material ' . $input['material_id'])];
+            $scaled[] = array_merge($input, ['qty' => $scaledQty, 'name' => $this->materials[$input['material_id']]['name'] ?? ('Material ' . $input['material_id'])]);
         }
 
         return $scaled;
@@ -292,10 +385,116 @@ class DataStore
                 'level' => $currentLevel['level'],
                 'next_level_xp' => $nextLevel['xp_required'] ?? null,
                 'modifiers' => $currentLevel['modifiers'] ?? [],
+                'skill_points' => $this->getSkillPoints($userId, $profId),
             ];
         }
 
         return $progress;
+    }
+
+    public function getSkillPoints(int $userId, int $professionId): int
+    {
+        $this->skillPoints[$userId] ??= [];
+
+        return $this->skillPoints[$userId][$professionId] ?? 0;
+    }
+
+    public function addSkillPoints(int $userId, int $professionId, int $points): void
+    {
+        $this->skillPoints[$userId] ??= [];
+        $this->skillPoints[$userId][$professionId] = ($this->skillPoints[$userId][$professionId] ?? 0) + $points;
+    }
+
+    public function unlockSkill(int $userId, int $skillId): array
+    {
+        $skill = $this->getSkill($skillId);
+        if (!$skill) {
+            throw new \RuntimeException('Skill not found');
+        }
+
+        $professionId = $skill['profession_id'];
+        $this->unlockedSkills[$userId] ??= [];
+
+        if (isset($this->unlockedSkills[$userId][$skillId])) {
+            return ['status' => 'already_unlocked'];
+        }
+
+        $availablePoints = $this->getSkillPoints($userId, $professionId);
+        if ($availablePoints < ($skill['cost'] ?? 1)) {
+            throw new \RuntimeException('Nedostatek skill pointů');
+        }
+
+        foreach ($skill['requires'] ?? [] as $reqId) {
+            if (!isset($this->unlockedSkills[$userId][$reqId])) {
+                throw new \RuntimeException('Nejprve odemkněte předchozí skill');
+            }
+        }
+
+        $this->unlockedSkills[$userId][$skillId] = true;
+        $this->skillPoints[$userId][$professionId] = $availablePoints - ($skill['cost'] ?? 1);
+
+        return ['status' => 'unlocked'];
+    }
+
+    public function getSkillState(int $userId): array
+    {
+        $unlocked = array_keys($this->unlockedSkills[$userId] ?? []);
+        $trees = $this->getSkillTrees();
+
+        $result = [];
+        foreach ($this->professions as $profession) {
+            $profId = $profession['id'];
+            $treeSkills = $trees[$profId] ?? [];
+            $result[] = [
+                'profession_id' => $profId,
+                'profession_name' => $profession['name'],
+                'points' => $this->getSkillPoints($userId, $profId),
+                'skills' => array_map(function (array $skill) use ($unlocked) {
+                    $isUnlocked = in_array($skill['id'], $unlocked, true);
+                    return $skill + ['state' => $isUnlocked ? 'unlocked' : 'locked'];
+                }, $treeSkills),
+            ];
+        }
+
+        return [
+            'points' => $this->skillPoints[$userId] ?? [],
+            'unlocked' => $unlocked,
+            'trees' => $result,
+        ];
+    }
+
+    public function getSkillModifiers(int $userId, int $professionId): array
+    {
+        $defaults = [
+            'speed_multiplier' => 1.0,
+            'cost_multiplier' => 1.0,
+            'yield_bonus' => 0,
+            'xp_bonus' => 0,
+        ];
+
+        $unlocked = array_keys($this->unlockedSkills[$userId] ?? []);
+        foreach ($unlocked as $skillId) {
+            $skill = $this->getSkill($skillId);
+            if (!$skill || ($skill['profession_id'] ?? null) !== $professionId) {
+                continue;
+            }
+
+            foreach ($skill['modifiers'] ?? [] as $key => $value) {
+                if (in_array($key, ['speed_multiplier', 'cost_multiplier'], true)) {
+                    $defaults[$key] *= $value;
+                }
+
+                if ($key === 'yield_bonus') {
+                    $defaults[$key] += $value;
+                }
+
+                if ($key === 'xp_bonus') {
+                    $defaults[$key] += $value;
+                }
+            }
+        }
+
+        return $defaults;
     }
 
     public function getUser(int $userId): ?array

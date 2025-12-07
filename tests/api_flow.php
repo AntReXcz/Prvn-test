@@ -70,4 +70,13 @@ if (!count($status['professions'] ?? [])) {
     throw new RuntimeException('Professions should be returned in status');
 }
 
+if (!isset($status['skills']['trees'])) {
+    throw new RuntimeException('Skills should be returned in status');
+}
+
+$skillUnlock = json_decode($presenter->handle(['action' => 'unlockSkill', 'userId' => 1, 'skillId' => 101]), true);
+if (!in_array($skillUnlock['status'] ?? '', ['unlocked', 'already_unlocked'], true)) {
+    throw new RuntimeException('Unlock skill should respond with unlocked status');
+}
+
 echo "API flow ok\n";

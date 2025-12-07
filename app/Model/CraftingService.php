@@ -42,7 +42,8 @@ class CraftingService
         $levels = $this->dataStore->getProfessionLevels($professionId);
         $profession = $user['professions'][$professionId] ?? ['xp' => 0, 'level' => 1];
         $currentLevel = ProfessionHelper::getLevelForXp($levels, $profession['xp']);
-        $speedMultiplier = $currentLevel['modifiers']['speed_multiplier'] ?? 1.0;
+        $skillMods = $this->dataStore->getSkillModifiers($userId, $professionId);
+        $speedMultiplier = ($currentLevel['modifiers']['speed_multiplier'] ?? 1.0) * ($skillMods['speed_multiplier'] ?? 1.0);
 
         $duration = (int)($recipe['time_ms'] * $speedMultiplier);
         $now = new DateTimeImmutable();
@@ -88,7 +89,8 @@ class CraftingService
         $this->dataStore->updateTask($taskId, $task);
 
         $recipe = $this->dataStore->getRecipe($task['recipe_id']) ?? [];
-        $rewardXp = $recipe['xp_reward'] ?? 50;
+        $skillMods = $this->dataStore->getSkillModifiers($task['user_id'], 2);
+        $rewardXp = (int)ceil(($recipe['xp_reward'] ?? 50) * (1 + ($skillMods['xp_bonus'] ?? 0)));
         $this->addXp($task['user_id'], 2, $rewardXp); // Smithing
 
         return [
@@ -109,10 +111,16 @@ class CraftingService
 
         $levels = $this->dataStore->getProfessionLevels($professionId);
         $userProf = $user['professions'][$professionId] ?? ['xp' => 0, 'level' => 1];
+        $previousLevel = $userProf['level'] ?? 1;
         $userProf['xp'] += $xp;
         $levelInfo = ProfessionHelper::getLevelForXp($levels, $userProf['xp']);
         $userProf['level'] = $levelInfo['level'];
         $user['professions'][$professionId] = $userProf;
         $this->dataStore->updateUser($userId, $user);
+
+        $levelsGained = max(0, $userProf['level'] - $previousLevel);
+        if ($levelsGained > 0) {
+            $this->dataStore->addSkillPoints($userId, $professionId, $levelsGained);
+        }
     }
 }

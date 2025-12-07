@@ -17,6 +17,8 @@ Kdykoli můžete použít i tlačítko **Factory reset** (vedle výběru mapy), 
 
 HUD zobrazuje postup v profesích (Mining a Smithing) včetně XP progress baru a aktuálního levelu; XP získáte za každý dokončený harvest i craft.
 
+Na nové záložce **Dovednosti** najdete strom skillů pro Mining i Smithing. Za každý získaný level obdržíte skill point; počáteční point navíc vám umožní hned odemknout první uzly. Skilly zrychlují těžbu/craft, přidávají dropy nebo snižují náklady – po odemčení se jejich efekty okamžitě projeví v progress baru i požadavcích receptů.
+
 Crafting panel obsahuje výběr receptů – kromě bronzu lze tavit měděné a cínové ingoty. Základní poměr je 10× rudný materiál = 1 ingot a se zvyšující se úrovní Smithingu se požadované množství automaticky snižuje (v požadavcích receptu uvidíte už upravené hodnoty).
 
 ## Spuštění na XAMPP/Apache

@@ -17,6 +17,7 @@ const requirementsEl = document.getElementById('requirements');
 const recipeSelect = document.getElementById('recipe-select');
 const recipeNameEl = document.getElementById('recipe-name');
 const professionsEl = document.getElementById('professions');
+const skillTreesEl = document.getElementById('skill-trees');
 const dropTarget = document.getElementById('drop-target');
 const craftBtn = document.getElementById('craft-btn');
 const toolStatus = document.getElementById('tool-status');
@@ -40,6 +41,7 @@ let craftTaskId = null;
 let currentZoneId = null;
 let zoneBounds = { ...DEFAULT_BOUNDS };
 let activeTab = 'map';
+let skillState = { trees: [], unlocked: [], points: {} };
 
 init();
 
@@ -53,6 +55,20 @@ async function init() {
   tabButtons.forEach((btn) => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tabTarget));
   });
+  if (skillTreesEl) {
+    skillTreesEl.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+      if (target.dataset && target.dataset.skillId) {
+        const skillId = Number(target.dataset.skillId);
+        if (!Number.isNaN(skillId)) {
+          unlockSkill(skillId);
+        }
+      }
+    });
+  }
   window.addEventListener('resize', () => {
     positionNodes();
     syncAoeIndicator();
@@ -527,6 +543,7 @@ async function refreshInventory() {
   const data = await callApi({ action: 'status', userId: USER_ID });
   inventoryCache = data.inventory || [];
   recipes = data.recipes || recipes;
+  skillState = data.skills || skillState;
   if (!selectedRecipeId && recipes.length) {
     selectedRecipeId = recipes[0].id;
   }
@@ -535,6 +552,7 @@ async function refreshInventory() {
   renderRecipes();
   renderTools(data.tools || []);
   renderProfessions(data.professions || []);
+  renderSkillTrees(skillState);
 }
 
 function renderInventory(slots) {
@@ -721,11 +739,121 @@ function renderProfessions(professions) {
       <div class="xp-track">
         <div class="xp-bar" style="width:${percentText}%"></div>
       </div>
-      <div class="xp-meta">${nextText} • ${speedText}</div>
+      <div class="xp-meta">${nextText} • ${speedText} • SP: ${prof.skill_points ?? 0}</div>
     `;
 
     professionsEl.appendChild(card);
   });
+}
+
+function renderSkillTrees(data) {
+  if (!skillTreesEl) {
+    return;
+  }
+
+  skillTreesEl.innerHTML = '';
+  const trees = Array.isArray(data.trees) ? data.trees : [];
+  const unlocked = new Set(Array.isArray(data.unlocked) ? data.unlocked : []);
+
+  if (!trees.length) {
+    skillTreesEl.textContent = 'Žádné dovednosti';
+    return;
+  }
+
+  trees.forEach((tree) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'skill-tree';
+    const points = tree.points || 0;
+    const title = document.createElement('div');
+    title.className = 'skill-tree__header';
+    title.innerHTML = `
+      <div>
+        <p class="eyebrow">${tree.profession_name || 'Profese'}</p>
+        <h3>${tree.profession_name || 'Profese'}</h3>
+      </div>
+      <div class="skill-tree__points">SP: <strong>${points}</strong></div>
+    `;
+    wrapper.appendChild(title);
+
+    const list = document.createElement('div');
+    list.className = 'skill-tree__list';
+    (tree.skills || []).forEach((skill) => {
+      const isUnlocked = unlocked.has(skill.id);
+      const requiresMet = (skill.requires || []).every((req) => unlocked.has(req));
+      const available = !isUnlocked && requiresMet && points >= (skill.cost || 1);
+
+      const node = document.createElement('div');
+      node.className = 'skill-node';
+      node.classList.toggle('skill-node--unlocked', isUnlocked);
+      node.classList.toggle('skill-node--available', available);
+
+      const modifiersText = formatModifiers(skill.modifiers || {});
+      const requiresText = (skill.requires || []).length
+        ? `Vyžaduje: ${skill.requires.join(', ')}`
+        : 'Začátek linie';
+
+      node.innerHTML = `
+        <div class="skill-node__title">${skill.name || 'Skill'} <span class="skill-node__cost">${skill.cost || 1} SP</span></div>
+        <p class="skill-node__desc">${skill.description || ''}</p>
+        <p class="skill-node__mods">${modifiersText}</p>
+        <p class="skill-node__req">${requiresText}</p>
+      `;
+
+      if (available) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'skill-node__unlock';
+        btn.textContent = 'Odemknout';
+        btn.dataset.skillId = String(skill.id);
+        node.appendChild(btn);
+      } else if (isUnlocked) {
+        const badge = document.createElement('div');
+        badge.className = 'skill-node__status';
+        badge.textContent = 'Odemčeno';
+        node.appendChild(badge);
+      }
+
+      list.appendChild(node);
+    });
+
+    wrapper.appendChild(list);
+    skillTreesEl.appendChild(wrapper);
+  });
+}
+
+function formatModifiers(mods) {
+  const parts = [];
+  if (mods.speed_multiplier && mods.speed_multiplier !== 1) {
+    const faster = mods.speed_multiplier < 1;
+    const pct = Math.round(Math.abs((1 - mods.speed_multiplier) * 100));
+    parts.push(`${faster ? '-' : '+'}${pct}% čas těžby/craftu`);
+  }
+  if (mods.cost_multiplier && mods.cost_multiplier !== 1) {
+    const pct = Math.round(Math.abs((1 - mods.cost_multiplier) * 100));
+    parts.push(`-${pct}% náklady`);
+  }
+  if (mods.yield_bonus) {
+    parts.push(`+${mods.yield_bonus} loot`);
+  }
+  if (mods.xp_bonus) {
+    const pct = Math.round((mods.xp_bonus || 0) * 100);
+    parts.push(`+${pct}% XP`);
+  }
+  return parts.length ? parts.join(' • ') : 'Bez bonusu';
+}
+
+async function unlockSkill(skillId) {
+  setStatus('Odemikám dovednost...');
+  try {
+    const data = await callApi({ action: 'unlockSkill', userId: USER_ID, skillId });
+    if (data.skills) {
+      skillState = data.skills;
+    }
+    await refreshInventory();
+    setStatus('Skill odemčen');
+  } catch (err) {
+    setStatus(err.message);
+  }
 }
 
 function resetProgress() {

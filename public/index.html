@@ -18,6 +18,7 @@
     <nav class="tab-nav" aria-label="Zobrazení">
       <button class="tab-button is-active" data-tab-target="map">Mapa</button>
       <button class="tab-button" data-tab-target="craft">Crafting</button>
+      <button class="tab-button" data-tab-target="skills">Dovednosti</button>
     </nav>
 
     <section class="hud tab-panel is-active" data-tab="map">
@@ -80,6 +81,17 @@
           <button id="craft-btn">Craft</button>
         </div>
       </div>
+    </section>
+
+    <section class="skills tab-panel" data-tab="skills">
+      <div class="skills-title">
+        <div>
+          <p class="eyebrow">Přehled skillů</p>
+          <h2>Strom dovedností</h2>
+        </div>
+        <p class="tagline">Utrať skill pointy za rychlejší těžbu, větší zisky a levnější craft.</p>
+      </div>
+      <div id="skill-trees" class="skill-trees">Načítám dovednosti...</div>
     </section>
   </div>
 

@@ -29,6 +29,7 @@ class ApiPresenter
                 'repairTool' => $this->json($this->miningService->repairTool((int)$request['userId'], (int)$request['toolId'], (int)$request['materialId'], (int)$request['materialQty'])),
                 'craft' => $this->json($this->craftingService->craft((int)$request['userId'], (int)$request['recipeId'])),
                 'finishCraft' => $this->json($this->craftingService->finishCrafting((int)$request['taskId'])),
+                'unlockSkill' => $this->json($this->unlockSkill((int)$request['userId'], (int)$request['skillId'])),
                 'listRecipes' => $this->json(['recipes' => $this->getRecipes((int)$request['userId'])]),
                 'zoneStatus' => $this->json(['nodes' => $this->dataStore->getZoneNodesWithState((int)$request['zoneId'])]),
                 'listZones' => $this->json(['zones' => $this->dataStore->getZones()]),
@@ -39,6 +40,7 @@ class ApiPresenter
                     'tools' => $this->getTools((int)$request['userId']),
                     'professions' => $this->dataStore->getProfessionProgress((int)$request['userId']),
                     'recipes' => $this->getRecipes((int)$request['userId']),
+                    'skills' => $this->dataStore->getSkillState((int)$request['userId']),
                 ]),
                 default => $this->json(['error' => 'Unknown action'], 400),
             };
@@ -95,6 +97,12 @@ class ApiPresenter
             'version' => $this->dataStore->getVersion(),
             'zones' => $this->dataStore->getZones(),
         ];
+    }
+
+    private function unlockSkill(int $userId, int $skillId): array
+    {
+        $result = $this->dataStore->unlockSkill($userId, $skillId);
+        return $result + ['skills' => $this->dataStore->getSkillState($userId)];
     }
 
     private function getRecipes(int $userId): array

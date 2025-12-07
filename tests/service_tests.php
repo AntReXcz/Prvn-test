@@ -133,4 +133,31 @@ $task->setValue($store, $tasks);
 $crafting->finishCrafting($tinCraft['task_id']);
 assertTrue($store->getInventoryQty(1, 7) === 1, 'Tin ingot added to inventory');
 
+$skillStore = new DataStore();
+$skillMining = new MiningService($skillStore);
+$skillCrafting = new CraftingService($skillStore);
+
+$userSkill = $skillStore->getUser(1);
+$userSkill['professions'][1]['xp'] = 90; // close to level 2
+$skillStore->updateUser(1, $userSkill);
+$startSkill = $skillMining->startMining(1, 1, 101, 1000);
+$skillTasks = new ReflectionProperty($skillStore, 'tasks');
+$skillTasks->setAccessible(true);
+$skillTaskList = $skillTasks->getValue($skillStore);
+$skillTaskList[$startSkill['task_id']]['finish_at'] = (new DateTimeImmutable())->sub(new DateInterval('PT1S'));
+$skillTasks->setValue($skillStore, $skillTaskList);
+$skillMining->finishMining($startSkill['task_id']);
+$pointsAfterLevel = $skillStore->getSkillPoints(1, 1);
+assertTrue($pointsAfterLevel > 1, 'Mining level-up grants skill points');
+
+$unlockResult = $skillStore->unlockSkill(1, 101);
+assertTrue($unlockResult['status'] === 'unlocked' || $unlockResult['status'] === 'already_unlocked', 'Skill unlock works');
+$mods = $skillStore->getSkillModifiers(1, 1);
+assertTrue($mods['speed_multiplier'] < 1, 'Unlocked mining skill speeds up actions');
+
+$skillStore->unlockSkill(1, 201);
+$smithReqs = $skillStore->getRecipeRequirementsForUser(1, 2);
+$copperCost = $smithReqs[0]['qty'] ?? 0;
+assertTrue($copperCost < 10, 'Smithing skill reduces copper cost');
+
 echo "All tests passed\n";
