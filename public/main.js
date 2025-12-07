@@ -21,6 +21,8 @@ const dropTarget = document.getElementById('drop-target');
 const craftBtn = document.getElementById('craft-btn');
 const toolStatus = document.getElementById('tool-status');
 const repairBtn = document.getElementById('repair-btn');
+const tabButtons = document.querySelectorAll('.tab-button');
+const tabPanels = document.querySelectorAll('.tab-panel');
 
 let nodes = [];
 let zones = [];
@@ -37,6 +39,7 @@ let aoeIndicator = null;
 let craftTaskId = null;
 let currentZoneId = null;
 let zoneBounds = { ...DEFAULT_BOUNDS };
+let activeTab = 'map';
 
 init();
 
@@ -47,11 +50,15 @@ async function init() {
   zoneSelect.addEventListener('change', handleZoneChange);
   resetBtn.addEventListener('click', resetSession);
   recipeSelect.addEventListener('change', handleRecipeChange);
+  tabButtons.forEach((btn) => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tabTarget));
+  });
   window.addEventListener('resize', () => {
     positionNodes();
     syncAoeIndicator();
   });
 
+  switchTab(activeTab);
   setStatus('Načítám mapy...');
   await Promise.all([loadZones(), refreshInventory()]);
   setStatus('Idle');
@@ -169,6 +176,27 @@ function handleRecipeChange(event) {
   }
   selectedRecipeId = nextId;
   renderRecipes();
+}
+
+function switchTab(target) {
+  const next = target || 'map';
+  activeTab = next;
+
+  tabButtons.forEach((btn) => {
+    const isActive = btn.dataset.tabTarget === next;
+    btn.classList.toggle('is-active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
+  });
+
+  tabPanels.forEach((panel) => {
+    const isActive = panel.dataset.tab === next;
+    panel.classList.toggle('is-active', isActive);
+  });
+
+  if (next === 'map') {
+    positionNodes();
+    syncAoeIndicator();
+  }
 }
 
 function renderNodes() {
