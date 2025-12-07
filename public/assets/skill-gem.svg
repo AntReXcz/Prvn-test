@@ -1,8 +1,26 @@
-<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" rx="14" fill="#111827"/>
-  <path d="M19 27.5 30.5 14h3L45 27.5 32 50h-2L19 27.5Z" fill="#6BE0B8" stroke="#9CF6D5" stroke-width="2"/>
-  <path d="M30.5 14 23 27.5 32 50 41 27.5 33.5 14h-3Z" fill="#52C7A0"/>
-  <path d="M19 27.5h26" stroke="#CFFBED" stroke-width="2" stroke-linecap="round"/>
-  <path d="M23 27.5 32 50" stroke="#CFFBED" stroke-width="2" stroke-linecap="round"/>
-  <path d="M41 27.5 32 50" stroke="#CFFBED" stroke-width="2" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Gem icon">
+  <defs>
+    <linearGradient id="crystal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7af0ff"/>
+      <stop offset="45%" stop-color="#3bd5ff"/>
+      <stop offset="100%" stop-color="#1988ff"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="30%" cy="25%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="60%" stop-color="#8de7ff" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#0f3f74" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="#0c1426"/>
+  <rect x="6" y="6" width="52" height="52" rx="12" fill="#13243c" stroke="#214166" stroke-width="2"/>
+  <g transform="translate(6 4)">
+    <path d="M26 8h8l10 12-14 28h-8L8 20 18 8z" fill="url(#crystal)" stroke="#0c2e59" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M26 8 18 20l10 6 8-6L34 8z" fill="#b3f3ff" opacity="0.8"/>
+    <path d="M28 26v22l-10-18z" fill="#2ba0e0" opacity="0.85"/>
+    <path d="M36 26v22l10-18z" fill="#1d79c7" opacity="0.75"/>
+    <path d="M28 26h8l-4 6z" fill="#e7fbff"/>
+    <circle cx="32" cy="26" r="16" fill="url(#shine)"/>
+  </g>
+  <circle cx="48" cy="16" r="5" fill="#6cf2ff" opacity="0.9"/>
+  <circle cx="50" cy="14" r="2" fill="#e7fbff"/>
 </svg>
