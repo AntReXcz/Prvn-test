@@ -800,13 +800,20 @@ function renderSkillTrees(data) {
       node.title = skill.name || 'Skill';
 
       const nameAbbr = (skill.name || 'Skill').slice(0, 2).toUpperCase();
+      const iconPath = skill.icon || '';
+      const label = skill.label || skill.name || 'Skill';
       const modifiersText = formatModifiers(skill.modifiers || {});
       const requiresText = (skill.requires || []).length
         ? `Vyžaduje: ${skill.requires.join(', ')}`
         : 'Začátek linie';
 
+      const iconHtml = iconPath
+        ? `<img class="skill-node__icon-img" src="${iconPath}" alt="${skill.name || 'Skill'}">`
+        : `<span class="skill-node__abbr">${nameAbbr}</span>`;
+
       node.innerHTML = `
-        <div class="skill-node__abbr">${nameAbbr}</div>
+        <div class="skill-node__icon" aria-hidden="true">${iconHtml}</div>
+        <div class="skill-node__label">${label}</div>
         <div class="skill-node__cost">${skill.cost || 1} SP</div>
       `;
 

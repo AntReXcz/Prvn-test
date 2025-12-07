@@ -120,6 +120,8 @@ class DataStore
                 'description' => 'Zkrátí dobu těžby o 10 %',
                 'requires' => [],
                 'cost' => 1,
+                'label' => 'Rychlost',
+                'icon' => 'assets/skill-pickaxe.svg',
                 'modifiers' => ['speed_multiplier' => 0.9],
             ],
             102 => [
@@ -129,6 +131,8 @@ class DataStore
                 'description' => 'Dalších 10 % rychlejší těžba',
                 'requires' => [101],
                 'cost' => 1,
+                'label' => 'Turbo',
+                'icon' => 'assets/skill-pickaxe.svg',
                 'modifiers' => ['speed_multiplier' => 0.9],
             ],
             103 => [
@@ -138,6 +142,8 @@ class DataStore
                 'description' => '+1 ruda za dokončení',
                 'requires' => [101],
                 'cost' => 1,
+                'label' => 'Výnos',
+                'icon' => 'assets/skill-gem.svg',
                 'modifiers' => ['yield_bonus' => 1],
             ],
             201 => [
@@ -147,6 +153,8 @@ class DataStore
                 'description' => '-10 % nákladů na ore',
                 'requires' => [],
                 'cost' => 1,
+                'label' => 'Úspora',
+                'icon' => 'assets/skill-anvil.svg',
                 'modifiers' => ['cost_multiplier' => 0.9],
             ],
             202 => [
@@ -156,6 +164,8 @@ class DataStore
                 'description' => '-10 % času craftu',
                 'requires' => [201],
                 'cost' => 1,
+                'label' => 'Pec',
+                'icon' => 'assets/skill-flame.svg',
                 'modifiers' => ['speed_multiplier' => 0.9],
             ],
             203 => [
@@ -165,6 +175,8 @@ class DataStore
                 'description' => '+10 % XP z craftu',
                 'requires' => [201],
                 'cost' => 1,
+                'label' => 'XP',
+                'icon' => 'assets/skill-star.svg',
                 'modifiers' => ['xp_bonus' => 0.1],
             ],
         ];
