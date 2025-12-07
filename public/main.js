@@ -775,6 +775,15 @@ function renderSkillTrees(data) {
     `;
     wrapper.appendChild(title);
 
+    const detail = document.createElement('div');
+    detail.className = 'skill-tree__detail';
+    detail.innerHTML = `
+      <p class="eyebrow">Detail skillu</p>
+      <div class="skill-tree__detail-body">Najetím na skill zobrazíš popis a bonusy.</div>
+    `;
+    const detailBody = detail.querySelector('.skill-tree__detail-body');
+    wrapper.appendChild(detail);
+
     const list = document.createElement('div');
     list.className = 'skill-tree__list';
     (tree.skills || []).forEach((skill) => {
@@ -782,35 +791,57 @@ function renderSkillTrees(data) {
       const requiresMet = (skill.requires || []).every((req) => unlocked.has(req));
       const available = !isUnlocked && requiresMet && points >= (skill.cost || 1);
 
-      const node = document.createElement('div');
+      const node = document.createElement('button');
+      node.type = 'button';
       node.className = 'skill-node';
       node.classList.toggle('skill-node--unlocked', isUnlocked);
       node.classList.toggle('skill-node--available', available);
+      node.dataset.skillId = String(skill.id);
+      node.title = skill.name || 'Skill';
 
+      const nameAbbr = (skill.name || 'Skill').slice(0, 2).toUpperCase();
       const modifiersText = formatModifiers(skill.modifiers || {});
       const requiresText = (skill.requires || []).length
         ? `Vyžaduje: ${skill.requires.join(', ')}`
         : 'Začátek linie';
 
       node.innerHTML = `
-        <div class="skill-node__title">${skill.name || 'Skill'} <span class="skill-node__cost">${skill.cost || 1} SP</span></div>
-        <p class="skill-node__desc">${skill.description || ''}</p>
-        <p class="skill-node__mods">${modifiersText}</p>
-        <p class="skill-node__req">${requiresText}</p>
+        <div class="skill-node__abbr">${nameAbbr}</div>
+        <div class="skill-node__cost">${skill.cost || 1} SP</div>
       `;
 
-      if (available) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'skill-node__unlock';
-        btn.textContent = 'Odemknout';
-        btn.dataset.skillId = String(skill.id);
-        node.appendChild(btn);
-      } else if (isUnlocked) {
-        const badge = document.createElement('div');
+      const detailHtml = `
+        <div class="skill-detail">
+          <div class="skill-detail__header">
+            <div>
+              <p class="eyebrow">${tree.profession_name || 'Profese'}</p>
+              <h4>${skill.name || 'Skill'}</h4>
+            </div>
+            <span class="pill">${skill.cost || 1} SP</span>
+          </div>
+          <p class="skill-detail__desc">${skill.description || ''}</p>
+          <p class="skill-detail__mods">${modifiersText}</p>
+          <p class="skill-detail__req">${requiresText}</p>
+        </div>
+      `;
+
+      node.addEventListener('mouseenter', () => {
+        detailBody.innerHTML = detailHtml;
+      });
+      node.addEventListener('focus', () => {
+        detailBody.innerHTML = detailHtml;
+      });
+
+      if (isUnlocked) {
+        const badge = document.createElement('span');
         badge.className = 'skill-node__status';
-        badge.textContent = 'Odemčeno';
+        badge.textContent = '✓';
         node.appendChild(badge);
+      } else if (!available) {
+        const lock = document.createElement('span');
+        lock.className = 'skill-node__status skill-node__status--locked';
+        lock.textContent = '×';
+        node.appendChild(lock);
       }
 
       list.appendChild(node);
