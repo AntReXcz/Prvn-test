@@ -6,27 +6,94 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Mining & Crafting</h1>
-  <section class="hud">
-    <div class="minimap" id="minimap"></div>
-    <div class="progress" id="progress">
-      <div class="bar" id="progress-bar"></div>
-      <span id="progress-label">Idle</span>
-    </div>
-  </section>
-
-  <section class="crafting">
-    <h2>Crafting</h2>
-    <div class="crafting-panel">
-      <div class="inventory" id="inventory"></div>
-      <div class="recipe" id="recipe" data-recipe-id="1">
-        <h3>Bronze Ingot</h3>
-        <div class="requirements" id="requirements"></div>
-        <div class="drop-target" id="drop-target">Drag materials here</div>
-        <button id="craft-btn">Craft</button>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Sandbox demo</p>
+        <h1>Mining & Crafting</h1>
+        <p class="tagline">Reálnější povrchy, zvýrazněné uzly a jemnější HUD pro těžbu i craft.</p>
       </div>
-    </div>
-  </section>
+    </header>
+
+    <nav class="tab-nav" aria-label="Zobrazení">
+      <button class="tab-button is-active" data-tab-target="map">Mapa</button>
+      <button class="tab-button" data-tab-target="craft">Crafting</button>
+      <button class="tab-button" data-tab-target="skills">Dovednosti</button>
+    </nav>
+
+    <section class="hud tab-panel is-active" data-tab="map">
+      <div class="map-panel">
+        <div class="map-controls">
+          <label class="zone-picker">
+            <span>Mapa:</span>
+            <select id="zone-select"></select>
+          </label>
+          <button id="reset-session" class="ghost">Factory reset</button>
+        </div>
+        <div class="minimap" id="minimap"></div>
+      </div>
+      <div class="info-panel">
+        <div class="progress" id="progress">
+          <div class="bar" id="progress-bar"></div>
+          <span id="progress-label">Idle</span>
+        </div>
+        <div class="professions">
+          <div class="professions-header">
+            <h2>Profese &amp; XP</h2>
+            <small>XP z těžby i craftu zvyšuje level</small>
+          </div>
+          <div id="professions" class="profession-list">Načítám XP...</div>
+        </div>
+        <div class="resources">
+          <h2>Vaše suroviny</h2>
+          <div id="resource-totals" class="resource-totals">Žádná data</div>
+        </div>
+        <div class="tooling">
+          <div class="tool-header">
+            <h2>Tool status</h2>
+            <button id="repair-btn">Repair with Copper Ore</button>
+          </div>
+          <div id="tool-status" class="tool-status"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="crafting tab-panel" data-tab="craft">
+      <div class="crafting-title">
+        <div>
+          <p class="eyebrow">Pracoviště</p>
+          <h2>Crafting</h2>
+        </div>
+        <p class="tagline">Drag&amp;drop materiály, sleduj XP a dokonči ingoty.</p>
+      </div>
+      <div class="crafting-panel">
+        <div class="inventory" id="inventory"></div>
+        <div class="recipe" id="recipe" data-recipe-id="1">
+          <div class="recipe-header">
+            <h3 id="recipe-name">Bronze Ingot</h3>
+            <label>
+              Vyber recept:
+              <select id="recipe-select"></select>
+            </label>
+          </div>
+          <div class="requirements" id="requirements"></div>
+          <div class="drop-target" id="drop-target">Drag materials here</div>
+          <button id="craft-btn">Craft</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="skills tab-panel" data-tab="skills">
+      <div class="skills-title">
+        <div>
+          <p class="eyebrow">Přehled skillů</p>
+          <h2>Strom dovedností</h2>
+        </div>
+        <p class="tagline">Utrať skill pointy za rychlejší těžbu, větší zisky a levnější craft.</p>
+      </div>
+      <div id="skill-trees" class="skill-trees">Načítám dovednosti...</div>
+    </section>
+  </div>
 
   <script src="main.js"></script>
 </body>
